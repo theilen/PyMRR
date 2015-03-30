@@ -1,0 +1,3 @@
+# ignore files created by setup.py
+dist/
+MANIFEST

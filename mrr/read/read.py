@@ -5,12 +5,19 @@ last change: Wed Oct 22 16:17 2014
 @author: Sebastian Theilenberg
 """
 
-__version__ = '1.2'
+__version__ = '1.3'
 # $Source$
 
 
 # version history
 # =================
+# version 1.3
+# -----------
+# - read_dicom:
+#        - added parsing of parameters
+# - read_dicom_set:
+#       - added parsing of parameters
+#
 # version 1.2
 # -----------
 # - read_dicom:
@@ -44,6 +51,7 @@ from PIL import Image
 
 from ..mrrcore import MRRArray, cond_print, empty
 from ..unwrapping import unwrap_array, valid_unwrapper
+from .parse_dicom import parse_parameters
 
 
 __metaclass__ = type
@@ -81,7 +89,10 @@ def nameparser(filename):
     items = name.split('_')
     # find image-number
     if len(items) < 2:
-        raise ValueError('Given filename "{}" does not match parsing pattern!'.format(filename))
+        raise ValueError(
+            "Given filename '{}' does not match parsing pattern!".format(
+                filename)
+            )
     for i in range(2):
         if re.match(r'\d\d-\d\d-\d\d', items[i]):
             index = i
@@ -112,6 +123,8 @@ def read_dicom(dicom_file, unwrap=False, mask=None, verbose=True,
     dc = dicom.read_file(dicom_file)
     cond_print('Read in file %s' % dicom_file, verbose)
     pixel_data = np.asarray(dc.pixel_array, dtype=np.float32)/4096.
+    seq_data = parse_parameters(dc)
+
     # Unwrap if specified
     if unwrap:
         if not np.any(mask):
@@ -126,11 +139,15 @@ def read_dicom(dicom_file, unwrap=False, mask=None, verbose=True,
             # raise UnwrapperError('Could not unwrap file %s' % dicom_file)
         if unwrapper in ['py_gold', 'c_gold']:
             if add[-1] != 1:
-                print 'WARNING: found disconnected pieces while unwrapping {}'.format(dicom_file)
-    # create MRRArray
-    data = MRRArray(pixel_data, mask=mask,
-                    orig_file=os.path.basename(dicom_file), unwrapped=unwrap)
+                print ("WARNING: found disconnected "
+                       "pieces while unwrapping {}").format(dicom_file)
 
+    # create MRRArray
+    seq_data.update({"orig_file": os.path.basename(dicom_file),
+                     "unwrapped": unwrap})
+    data = MRRArray(pixel_data, mask=mask, **seq_data)
+
+    # return data
     if unwrap_data:
         return data, add
     return data
@@ -142,7 +159,7 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
     Reads-in the whole set of dicom-files belonging to that series and returns
     it as a multidimensional array with the first dimension being the image
     number.
-    
+
     Parameters
     ----------
     dicom_file : str
@@ -155,7 +172,7 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
         writes information in stdout. (Default: True)
     unwrapper : str
         which unwrapper to use if unwrap==True. (Default: 'py_gold')
-        
+
     Returns
     -------
     data : 3darray
@@ -175,9 +192,11 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
     dc = read_dicom(files[0], unwrap, mask, verbose, unwrapper=unwrapper)
 
     # write MRRArray
+    seq_data = parse_parameters(dc)
+    seq_data.update({"orig_file": os.path.basename(dicom_file),
+                     "unwrapped": unwrap})
     shape = dc.shape
-    data = empty((nofimages, shape[0], shape[1]),
-                 orig_file=os.path.basename(files[0]), unwrapped=unwrap)
+    data = empty((nofimages, shape[0], shape[1]), **seq_data)
     data[0] = dc
     # fill remaining array
     i = j = 1
@@ -211,7 +230,7 @@ def read_mask(filename, check_invert=True):
     '''
     mask = np.asarray(Image.open(filename), dtype=np.bool)
     if check_invert:
-        if mask[0,0] is True:
+        if mask[0, 0] is True:
             return np.invert(mask)
     return mask
 

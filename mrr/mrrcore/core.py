@@ -3,6 +3,9 @@
 
 # Version history
 # ==================
+# changes in 1.2.2
+# - added additional attributes to MRRArray
+#
 # changes in 1.2.1
 # - reimplemented load to return MRRArray
 # - changes in mrr_mean to handle weights in case of missing deviation-data
@@ -29,7 +32,7 @@
 #       - set mask to True if mask==None
 #
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 # $Source$
 
 import numpy as np
@@ -45,8 +48,6 @@ __all__ = ["MRRArray", "empty", "empty_like",
            "mrr_min", "mrr_max", "mrr_mean",
            "cond_print"
            ]
-
-# __metaclass__ = type
 
 
 class MRRArray(np.ndarray):
@@ -69,8 +70,14 @@ class MRRArray(np.ndarray):
     original_file : string, The filename the data came from
     unwrapped : boolean, wether the data was unwrapped
     '''
-    _attributes = {'orig_file': None,  # original filename
-                   'unwrapped':  False  # flag whether the data was unwrapped
+    _attributes = {"orig_file": None,  # original filename
+                   "unwrapped":  False,  # flag whether the data was unwrapped
+                   "POST": None,  # Trigger Delay, if present
+                   "delta": None,
+                   "Delta": None,
+                   "maxGrad": None,
+                   "gradstart": None,
+                   "bvalue": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -106,6 +113,23 @@ class MRRArray(np.ndarray):
 
     def __array_wrap__(self, obj, context=None):
         return obj.view(type(self))
+
+    def __str__(self):
+        s = "MRRArray of shape {}".format(self.shape)
+        if self.orig_file:
+            s += ", read from file {}".format(self.orig_file)
+        s += " ("
+        if not self.unwrapped:
+            s += "not "
+        s += "unwrapped)\n"
+        for name, unit in zip(
+                ["delta", "bvalue", "Delta", "maxGrad", "gradstart", "POST"],
+                ["ms"]*2 + ["s/mm^2"] + ["mT/m"] + ["ms"]*2):
+            s += "\t{:<9}:{:>10.3f} {}\n".format(
+                name, getattr(self, name), unit
+                )
+        s += super(MRRArray, self).__str__()
+        return s
 
     # return fields as view of numpy.ndarray
     @property

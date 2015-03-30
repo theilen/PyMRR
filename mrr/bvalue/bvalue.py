@@ -1,200 +1,198 @@
-import numpy as np
+# -*- coding: utf-8 -*-
+"""
+Calculate gradient parameters for Stejskal Tanner unipolar gradient forms
+from bvalues and vice versa.
+
+@author: Sebastian Theilenberg
+"""
+
+__version__ = '1.0'
+# $Source$
+
+
 import math
 
-import bvalue
 
-#b : s/mm^2 = 10^6 s/m^2
-#G : mT/m = 10^-3 T/m
-#d : ms = 10^-3 s
-#D : ms = 10^-3 s
-#dD : ms = 10^-3 s
+# b : s/mm^2 = 10^6 s/m^2
+# G : mT/m = 10^-3 T/m
+# d : ms = 10^-3 s
+# D : ms = 10^-3 s
+# dD : ms = 10^-3 s
 
-gamma = 42.57e6*2.*math.pi #[Hz/T]
-
-Dd_flag = True
-
-print 'Using D = Delta-delta for calculations.'
+# Gamma
+gamma = 42.57e6*2.*math.pi  # [rad/s/T]
+slope = 0.36e-3  # s
 
 
-#def set_gamma(g):
-#    'Set gamma to a new value (in SI-units [Hz/T]'
-#    bvalue.gamma = float(g)
-    
-def switch_Delta(flag):
-    '''
-    Switch between Calculations using 'delta-delta' (space between gradients)
-    and 'delta' (space between the center of the gradients)
-    '''
-    if flag == 'delta':
-        bvalue.Dd_flag = False
-        print 'Using D = Delta for calculations.'
-    elif flag == 'delta-delta':
-        bvalue.Dd_flag = True
-        print 'Using D = Delta-delta for calculations.'
+# Trapezoidal gradient forms
+
+def trapezoid_G(b, d, D, s=slope):
+    """
+    Calculate gradient's strength for a trapezoidal gradient form.
+
+    Parameters
+    ----------
+    b : float
+        bvalue in s/m^2 (= 10^6 s/mm^2)
+    d : float
+        gradient's length in s
+    D : float
+        time between the two gradients' center in s
+        Note: This is not DW Delta Delta as provided to the EPI!
+    s : float (Optional)
+        ramptime of the gradient in s.
+
+    Returns
+    -------
+    G : float
+        Gradient's strength in T/m
+    """
+    g = gamma
+    res = math.sqrt(
+        b/(g**2*(d**2.*(D - d/3.) + s**3./30. - d*s**2./6))
+        )
+    return res
+
+
+def trapezoid_b(G, d, D, s=slope):
+    """
+    Calculate the bvalue for a trapezoidal gradient form.
+
+    Parameters
+    ----------
+    G : float
+        Gradient's strength in T/m
+    d : float
+        gradient's length in s
+    D : float
+        time between the two gradients' center in s
+        Note: This is not DW Delta Delta as provided to the EPI!
+    s : float (Optional)
+        ramptime of the gradient in s.
+
+    Returns
+    -------
+    b : float
+        bvalue in s/mm^2 (NO SI-unit!)
+    """
+    return gamma**2.*G**2*(d**2.*(D - d/3.) + s**3./30. - d*s**2./6.) * 1e-6
+
+
+def trapezoid_D(G, b, d, s=slope):
+    """
+    Calculate the distance between the centers of two trapezoidal gradient
+    forms.
+
+    Parameters
+    ----------
+    G : float
+        Gradient's strength in T/m
+    b : float
+        bvalue in s/m^2 (= 10^6 s/mm^2)
+    d : float
+        gradient's length in s
+    s : float (Optional)
+        ramptime of the gradient in s.
+
+    Returns
+    -------
+    D : float
+        time between the two gradients' center in s
+        Note: This is not DW Delta Delta as provided to the EPI!
+    """
+    return (30.*b/(gamma*G)**2. + 10.*d**3. + 5.*d*s**2. - s**3.)/30./d**2.
+
+
+def trapezoid_d(G, b, D, s):
+    """
+    Calculate the duration of a trapezoidal gradient form.
+
+    There may be more than one mathematically meaningful solution, in this
+    case the minimum meaningful solution is returned.
+
+    Parameters
+    ----------
+    G : float
+        Gradient's strength in T/m
+    b : float
+        bvalue in s/m^2 (= 10^6 s/mm^2)
+    D : float
+        time between the two gradients' center in s
+        Note: This is not DW Delta Delta as provided to the EPI!
+    s : float (Optional)
+        ramptime of the gradient in s.
+
+    Returns
+    -------
+    d : float
+        gradient's length in s
+    """
+    gG = gamma*G
+    a_ = -3.*D
+    b_ = 0.5*s**2.
+    c_ = -s**3./10. + 3*b/gG**2
+    p = b_ - a_**2./3.
+    q = 2*a_**3./27. - a_*b_/3. + c_
+    D_ = (q/2.)**2. + (p/3.)**3.
+    if D_ >= 0:
+        z = ((-q/2. + math.sqrt(D_))**(1./3.)
+             + (-q/2. - math.sqrt(D_))**(1./3.)
+             - a_/3.)
     else:
-        raise ValueError('Wrong flag provided!')
+        z_ = [
+            (-math.sqrt(-4./3.*p)
+                * math.cos(
+                    1./3.*math.acos(-q/2.*math.sqrt(-27./p**3.))
+                    + const/3.)
+                - a_/3.)
+            for const in [+math.pi, 0.0, -math.pi]]
+        z = min([d for d in z_ if d > 0 and d < D])
+    return z
 
 
-def D(b,G,d):
-    '''
-    Calculate Delta (or Delta-delta, depending on the configuration)
-    in [ms].
-    
-    Provide all data in common units, e.g.:    
-    b : [s/mm]
-    G : [mT/m]
-    d : [ms]
-    '''
-    b = b*1e6
-    G = G*1e-3
-    d = d*1e-3
-    if bvalue.Dd_flag:
-        return calc_Dd(b,G,d)*1e3
-    else:
-        return calc_D(b,G,d)*1e3
-    
-def d(b,G,D, all_solutions=False):
-    '''
-    Calculate delta in [ms]. D is either the space between the gradients 
-    or the space between the center of the gradients, depending on the 
-    current configuration.
-    
-    Mathematically there are up to three possible solutions. If verbose is set
-    to True (not default), all three are returned, otherwise the physically 
-    meaningful solution is guessed and returned.
-    
-    Provide all data in common units, e.g.:    
-    b : [s/mm]
-    G : [mT/m]
-    D : [ms]
-    '''
-    b = b*1e6
-    G = G*1e-3
-    D = D*1e-3
-    if bvalue.Dd_flag:
-        sol = bvalue.calc_d_Dd(b,G,D,verbose=False)
-    else:
-        sol = bvalue.calc_d(b,G,D)
-    if all_solutions:
-        return [ d_*1e3 for d_ in sol ]
-    else:
-        return min([ d_ for d_ in sol if d_>0 ])*1e3
-    
-def G(b,d,D):
-    '''
-    Calculate the gradient strength G in [mT/m].
-    
-    Provide all data in common units, e.g.:    
-    b : [s/mm]
-    d : [ms]
-    D : [ms]
-    '''
-    b = b*1e6
-    d = d*1e-3
-    D = D*1e-3
-    if bvalue.Dd_flag:
-        return bvalue.calc_G_Dd(b,d,D)*1e3
-    else:
-        return bvalue.calc_G(b,d,D)*1e3
-        
-def b(G,d,D):
-    '''
-    Calculate the b-value in [s/mm^2].
-    
-    Provide all data in common units, e.g.:    
-    G : [mT/m]
-    d : [ms]
-    D : [ms]
-    '''
-    G = G*1e-3
-    d = d*1e-3
-    D = D*1e-3
-    if bvalue.Dd_flag:
-        return bvalue.calc_b_Dd(G,d,D)*1e-6
-    else:
-        return bvalue.calc_b(G,d,D)*1e-6
-        
-        
-        
+# Rectangular gradient forms
+
+def rectangular_G(b, d, D):
+    return math.sqrt(b/(gamma**2.*d**2.*(D-d/3.)))
 
 
+def rectangular_b(G, d, D):
+    return gamma**2.*G**2.*d**2.*(D-d/3.)
 
 
-def calc_G(b,d,D):
-    'Calculate G in [T/m] using Delta'
-    g = bvalue.gamma
-    return math.sqrt(b/(g**2.*d**2.*(D-d/3.)))
+def rectangular_D(b, G, d):
+    return b/(gamma**2.*G**2.*d**2.) + d/3.
 
-def calc_G_Dd(b,d,Dd):
-    'Calculate G in [T/m] using Delta-delta'
-    return calc_G(b,d,Dd+d)
 
-def calc_b(G,d,D):
-    'Calculate b in [s/m^2] using Delta'
-    g = bvalue.gamma
-    return g**2.*G**2.*d**2.*(D-d/3.)
-
-def calc_b_Dd(G,d,Dd):
-    'Calculate b in [s/m^2] using Delta-delta'
-    return calc_b(G,d,Dd+d)
-
-def calc_D(b,G,d):
-    'Calculate Delta in [s]'
-    g = bvalue.gamma
-    return b/(g**2.*G**2.*d**2.) + d/3.
-
-def calc_Dd(b,G,d):
-    'Calculate Delta-delta in [s]'
-    return calc_D(b,G,d) - d
-
-def calc_d(b,G,D,verbose=False):
+def rectangular_d(b, G, D, verbose=False):
     '''
     Calculate d in [s] using Delta.
-    
-    Returns three possible solutions if verbose == True and a list of 
-    meaningful solutions otherwise.
+
+    Returns three possible solutions if verbose == True and the minimal
+    meaningful solution otherwise.
     '''
-    g = bvalue.gamma
+    g = gamma
     phi = math.acos(1.-3.*b/(2.*g**2*G**2.*D**3.))
     d1 = 2.*D*math.cos(phi/3.) + D
     d2 = D - 2.*D*math.cos((phi+math.pi)/3.)
     d3 = D - 2.*D*math.cos((phi-math.pi)/3.)
-    if verbose: return d1,d2,d3
-    return [d_ for d_ in [d1,d2,d3] if d_ > 0 and d_ < D]
+    if verbose:
+        return d1, d2, d3
+    else:
+        res = [d_ for d_ in [d1, d2, d3] if d_ > 0 and d_ < D]
+        return min(res)
 
-def calc_d_Dd(b,G,Dd):
-    '''
-    Calculate d in [s] using Delta-delta.
-    
-    Returns up to three positive possible solutions.
-    '''
-    g = bvalue.gamma
-    p = -0.25*Dd**2.
-    q = Dd**3/8. - 3.*b/(4.*g**2*G**2)
-    D = p**3 + q**2.
-    if D > 0:
-        #if verbose: print 'D =',D,'> 0'
-        d1 = (-q+math.sqrt(D))**(1/3.) + (-q-math.sqrt(D))**(1/3.)-0.5*Dd
-        d2 = d3 = None
-    elif D < 0:
-        #if verbose: print 'D =',D,'< 0'
-        phi = math.acos(-q/math.sqrt(abs(p)**3))
-        d1 = 2.*math.sqrt(abs(p))*math.cos(phi/3.)-0.5*Dd
-        d2 = -2.*math.sqrt(abs(p))*math.cos((phi+math.pi)/3.)-0.5*Dd
-        d3 = -2.*math.sqrt(abs(p))*math.cos((phi-math.pi)/3.)-0.5*Dd
-    return [d_ for d_ in [d1,d2,d3] if d_ > 0]# and d_ < Dd])
-
-def create_list(Dd, b_0, d_0, length=50, dd = 1e-3):
-    data = np.empty((length,4))
-    data[:,0] = np.linspace(d_0, d_0+dd*(length-1), length)
-    G = calc_G_Dd(b_0,d_0,Dd)
-    data[0,0] = d_0
-    data[0,1] = b_0
-    for i in range(1,length):
-        data[i,1] = calc_b_Dd(G,data[i,0],Dd)
-    for i in range(length):
-        data[i,2] = round(data[i,1],-6)
-        data[i,3] = calc_d_Dd(data[i,2],G,Dd)
-    data[:,[0,3]] *= 1000.
-    data[:,1:3] /= 1000000.
-    return {'G':G,'Dd':Dd},data
+#def create_list(Dd, b_0, d_0, length=50, dd = 1e-3):
+#    data = np.empty((length,4))
+#    data[:,0] = np.linspace(d_0, d_0+dd*(length-1), length)
+#    G = calc_G_Dd(b_0,d_0,Dd)
+#    data[0,0] = d_0
+#    data[0,1] = b_0
+#    for i in range(1,length):
+#        data[i,1] = calc_b_Dd(G,data[i,0],Dd)
+#    for i in range(length):
+#        data[i,2] = round(data[i,1],-6)
+#        data[i,3] = calc_d_Dd(data[i,2],G,Dd)
+#    data[:,[0,3]] *= 1000.
+#    data[:,1:3] /= 1000000.
+#    return {'G':G,'Dd':Dd},data
