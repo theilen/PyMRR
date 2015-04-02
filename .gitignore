@@ -1,3 +1,5 @@
 # ignore files created by setup.py
 dist/
 MANIFEST
+# ignore compiled files
+*.pyc
