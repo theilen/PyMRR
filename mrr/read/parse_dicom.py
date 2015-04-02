@@ -5,9 +5,11 @@ Extract sequence parameters from dicom header.
 @author: Sebastian Theilenberg
 """
 
-__version__ = '0.8'
+__version__ = '0.81'
 # $Source$
 
+
+import dicom
 
 from .siemens_csa import parse_csa_header, parse_protocol_data
 from ..bvalue import trapezoid_G
@@ -26,6 +28,11 @@ _PHOENIX_TAGS = {
     # pause after the trigger
     "sWiPMemBlock.alFree[6]": ["POST", lambda i: float(i)*1e-3]
 }
+
+
+def read_parameters(dicom_file):
+    dc = dicom.read_file(dicom_file, stop_before_pixels=True)
+    return parse_parameters(dc)
 
 
 def parse_parameters(dicom_data):

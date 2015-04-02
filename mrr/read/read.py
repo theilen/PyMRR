@@ -5,7 +5,7 @@ last change: Wed Oct 22 16:17 2014
 @author: Sebastian Theilenberg
 """
 
-__version__ = '1.3'
+__version__ = '1.31'
 # $Source$
 
 
@@ -51,7 +51,7 @@ from PIL import Image
 
 from ..mrrcore import MRRArray, cond_print, empty
 from ..unwrapping import unwrap_array, valid_unwrapper
-from .parse_dicom import parse_parameters
+from .parse_dicom import read_parameters, parse_parameters
 
 
 __metaclass__ = type
@@ -192,7 +192,7 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
     dc = read_dicom(files[0], unwrap, mask, verbose, unwrapper=unwrapper)
 
     # write MRRArray
-    seq_data = parse_parameters(dc)
+    seq_data = read_parameters(files[0])
     seq_data.update({"orig_file": os.path.basename(dicom_file),
                      "unwrapped": unwrap})
     shape = dc.shape

@@ -1,6 +1,6 @@
 
 
-__version__ = '1.3'
+__version__ = '1.31'
 # $Source$
 
 # version history
@@ -29,8 +29,8 @@ __version__ = '1.3'
 #       (len(items)<2)
 
 from .read import read_dicom, read_dicom_set, read_bitmap, read_mask
-from .parse_dicom import parse_parameters
+from .parse_dicom import read_parameters
 
 __all__ = ['read_dicom', 'read_dicom_set', 'read_bitmap', 'read_mask',
-           'parse_parameters'
+           "read_parameters"
            ]
