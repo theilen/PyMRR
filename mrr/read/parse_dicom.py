@@ -5,14 +5,13 @@ Extract sequence parameters from dicom header.
 @author: Sebastian Theilenberg
 """
 
-__version__ = '0.81'
+__version__ = '0.82'
 # $Source$
 
 
 import dicom
 
-from .siemens_csa import parse_csa_header, parse_protocol_data
-from ..bvalue import trapezoid_G
+from .siemens_csa import get_phoenix_protocol
 
 
 # tags to be read out of MrPhoenixProtocol and their corresponding names
@@ -25,17 +24,22 @@ _PHOENIX_TAGS = {
     "sWiPMemBlock.adFree[8]": ["Delta", lambda i: float(i)],
     # start of the first gradient after the maximum of the excitation pulse
     "sWiPMemBlock.adFree[9]": ["gradstart", lambda i: float(i)],
-    # pause after the trigger
-    "sWiPMemBlock.alFree[6]": ["POST", lambda i: float(i)*1e-3]
+    # gradient amplitude
+    "sWiPMemBlock.adFree[12]": ["maxGrad", lambda i: float(i)],
+    # post Trigger Fill Time (ms)
+    "sWiPMemBlock.alFree[6]": ["PTFT", lambda i: float(i)*1e-3],
+    # PFTF decrement (ms)
+    "sWiPMemBlock.alFree[20]": ["PTFT_decr", lambda i: float(i)*1e-3],
+    # PTFT averages
+    "sWiPMemBlock.alFree[21]": ["PTFT_aver", lambda i: int(i)],
+    # number of images (repetitions = images-1)
+    "lRepetitions": ["TotalImages", lambda i: int(i)+1],
 }
 
 
-def read_parameters(dicom_file):
-    dc = dicom.read_file(dicom_file, stop_before_pixels=True)
-    return parse_parameters(dc)
-
-
-def parse_parameters(dicom_data):
+def parse_parameters(dcm):
+    if not isinstance(dcm, dicom.dataset.Dataset):
+        dcm = dicom.read_file(dcm, stop_before_pixels=True)
     """
     Parse specific fields out of the dicom-files CSA header.
 
@@ -45,34 +49,21 @@ def parse_parameters(dicom_data):
             length of motion sensitizing gradient  in ms
         Delta : float
             time between motion sensitizing gradients
-        gradient start : float
+        gradstart : float
             time from the maximum of the excitation-pulse to the start of the
             first gradient in ms
         bvalue : float
             specified b-value in s/mm^2
         maxGrad : float
             gradient's strength in mT/m
-        POST : float
+        PTFT : float
             time the trigger signal got shifted towards the excitation in ms
+        PTFT_aver : int (if present)
+            number of images per PTFT
+        PTFT_decr : float (if present)
+            decrement in PTFT
     """
-    # Get private CSA header from dicom-file and parse it.
-    # This should be tag (0x0029, 0x1020), but may be one of the following,
-    # too (Actually the private header seems to be present multiple times in
-    # the dicom header): (0x0029, 0x1010), (0x0029, 0x1210), (0x0029, 0x1110),
-    # (0x0029, 0x1220), (0x0029, 0x1120)
-    for tag in [(0x0029, 0x1020), (0x0029, 0x1120), (0x0029, 0x1220),
-                (0x0029, 0x1010), (0x0029, 0x1110), (0x0029, 0x1210)
-                ]:
-        data = dicom_data[tag].value
-        if data:
-            csa = parse_csa_header(data)
-            if "MrPhoenixProtocol" in csa.keys():
-                break
-    assert csa
-
-    # parse MrPhoenixProtocol, that contains the magic
-    mrp = parse_protocol_data(csa["MrPhoenixProtocol"])
-    assert mrp
+    mrp = get_phoenix_protocol(dcm)
 
     parameters = {}
     for tag, specifier in _PHOENIX_TAGS.items():
@@ -80,16 +71,36 @@ def parse_parameters(dicom_data):
         try:
             parameters[name] = func(mrp[tag])
         except KeyError:
-            parameters[name] = None
+            pass
 
     # currently sWiPMemBlock.alFree[6] is only set if unequal to zero
-    if parameters["POST"] is None:
-        parameters["POST"] = 0.
+    if "PTFT" not in parameters:
+        parameters["PTFT"] = 0.
 
     # (Re-)calculate parameters
     parameters["Delta"] += parameters["delta"]  # to match Bernstein
-    parameters["maxGrad"] = trapezoid_G(parameters['bvalue']*1e6,
-                                        parameters['delta']*1e-3,
-                                        parameters['Delta']*1e-3)*1e3
+    if "PTFT_aver" in parameters:  # recalculate PTFT in case of variable seq
+        parameters["PTFT"] = _calc_ptft(dcm.InstanceNumber,
+                                        parameters["PTFT"],
+                                        parameters["PTFT_aver"],
+                                        parameters["PTFT_decr"])
 
     return parameters
+
+
+def variable_ptft(dcm):
+    "Check, whether dcm is a dicom with variable PTFT."
+    if not isinstance(dcm, dicom.dataset.Dataset):
+        dcm = dicom.read_file(dcm, stop_before_pixels=True)
+    if "PTFT_aver" in get_phoenix_protocol(dcm):
+        return True
+    else:
+        return False
+
+
+def _calc_ptft(index, fill, aver, decr):
+    "Calculate individual ptft."
+    if index < 2:
+        return fill
+    t = (index-2)//aver
+    return fill - t*decr

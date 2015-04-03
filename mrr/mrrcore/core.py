@@ -32,7 +32,7 @@
 #       - set mask to True if mask==None
 #
 
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 # $Source$
 
 import numpy as np
@@ -71,8 +71,8 @@ class MRRArray(np.ndarray):
     unwrapped : boolean, wether the data was unwrapped
     '''
     _attributes = {"orig_file": None,  # original filename
-                   "unwrapped":  False,  # flag whether the data was unwrapped
-                   "POST": None,  # Trigger Delay, if present
+                   "unwrapped": False,  # flag whether the data was unwrapped
+                   "PTFT": None,  # Trigger Delay, if present
                    "delta": None,
                    "Delta": None,
                    "maxGrad": None,

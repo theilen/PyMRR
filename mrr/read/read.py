@@ -5,7 +5,7 @@ last change: Wed Oct 22 16:17 2014
 @author: Sebastian Theilenberg
 """
 
-__version__ = '1.31'
+__version__ = '1.32'
 # $Source$
 
 
@@ -51,7 +51,7 @@ from PIL import Image
 
 from ..mrrcore import MRRArray, cond_print, empty
 from ..unwrapping import unwrap_array, valid_unwrapper
-from .parse_dicom import read_parameters, parse_parameters
+from .parse_dicom import parse_parameters, variable_ptft
 
 
 __metaclass__ = type
@@ -150,10 +150,11 @@ def read_dicom(dicom_file, unwrap=False, mask=None, verbose=True,
     # return data
     if unwrap_data:
         return data, add
-    return data
+    else:
+        return data
 
 
-def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
+def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
                    unwrapper='py_gold'):
     '''
     Reads-in the whole set of dicom-files belonging to that series and returns
@@ -165,11 +166,11 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
     dicom_file : str
         Path of one arbitrary file of the set to be read-in.
     unwrap : bool (optional)
-        wether to unwrap the data while reading it. (Default: False)
+        whether to unwrap the data while reading it. (Default: False)
     mask : 2darray (optional)
         mask to set in the array. Mandatory if unwrap==True!
     verbose : bool (optional)
-        writes information in stdout. (Default: True)
+        writes information in stdout. (Default: False)
     unwrapper : str
         which unwrapper to use if unwrap==True. (Default: 'py_gold')
 
@@ -182,41 +183,46 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=True,
     if unwrap is True and not valid_unwrapper(unwrapper):
         raise AttributeError('No algorithm named {}'.format(unwrapper))
 
-    # read-in files
+    # find files
     files = nameparser(dicom_file)
     if len(files) == 0:
         raise IOError("Did not find any dicom files! Wrong path?")
-    # read first file
     nofimages = len(files)
     cond_print('Found {} file(s) in total'.format(nofimages), verbose)
-    dc = read_dicom(files[0], unwrap, mask, verbose, unwrapper=unwrapper)
 
-    # write MRRArray
-    seq_data = read_parameters(files[0])
-    seq_data.update({"orig_file": os.path.basename(dicom_file),
-                     "unwrapped": unwrap})
-    shape = dc.shape
-    data = empty((nofimages, shape[0], shape[1]), **seq_data)
-    data[0] = dc
-    # fill remaining array
-    i = j = 1
-    while i in xrange(1, nofimages):
+    # Read files
+    result = []
+    images = []
+    index = 0
+    while index <= nofimages:
+        dc = read_dicom(files[index], mask=mask, verbose=verbose,
+                        unwrap=unwrap, unwrapper=unwrapper)
         try:
-            data[j] = read_dicom(files[i], unwrap, mask, verbose,
-                                 unwrapper=unwrapper)
-        except:
-            cond_print('File "%s" could not be read...' % files[i], verbose)
-            raise
-        else:
-            j += 1
-        i += 1
-    # Clean size of array
-    if j != i:
-        data = np.delete(data, np.s_[j:], axis=0)
-        cond_print('WARNING: %i file(s) could not be read in! ' % (i-j) +
-                   'Read %i files in total.' % j)
+            ptft = images[-1].PTFT
+        except IndexError:
+            ptft = dc.PTFT
 
-    return data
+        if dc.PTFT == ptft:
+            # Collect data with same PTFT
+            images.append(dc)
+        else:
+            # Write all data in images into one MRRArray
+            seq_data = parse_parameters(files[0])
+            seq_data.update({"orig_file": os.path.basename(dicom_file),
+                             "unwrapped": unwrap})
+            shape = images[0].shape
+            data = empty((len(images), shape[0], shape[1]), **seq_data)
+            for i, item in enumerate(images):
+                data[i] = item
+            result.append(data)
+            images = []
+        # Increase index before next file
+        index += 1
+
+    if len(result) == 1:
+        result = result[0]
+
+    return result
 
 
 def read_mask(filename, check_invert=True):

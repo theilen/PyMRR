@@ -16,14 +16,38 @@ these CSA headers therefore go to the original author.
 """
 
 
-__version__ = '0.8'
+__version__ = '0.81'
 # $Source$
 
 
 import struct
 
 
-def parse_csa_header(tag, little_endian=True):
+def get_phoenix_protocol(dicom_data):
+    "Get the parsed 'MrPhoenixProtocol' data of dicom_data"
+    # Get private CSA header from dicom-file and parse it.
+    # This should be tag (0x0029, 0x1020), but may be one of the following,
+    # too (Actually the private header seems to be present multiple times in
+    # the dicom header): (0x0029, 0x1010), (0x0029, 0x1210), (0x0029, 0x1110),
+    # (0x0029, 0x1220), (0x0029, 0x1120)
+    for tag in [(0x0029, 0x1020), (0x0029, 0x1120), (0x0029, 0x1220),
+                (0x0029, 0x1010), (0x0029, 0x1110), (0x0029, 0x1210)
+                ]:
+        data = dicom_data[tag].value
+        if data:
+            csa = _parse_csa_header(data)
+            if "MrPhoenixProtocol" in csa.keys():
+                break
+    assert csa
+
+    # parse MrPhoenixProtocol, that contains the magic
+    mrp = _parse_protocol_data(csa["MrPhoenixProtocol"])
+    assert mrp
+
+    return mrp
+
+
+def _parse_csa_header(tag, little_endian=True):
     """The CSA header is a Siemens private tag that should be passed as
     a string. Any of the following tags should work: (0x0029, 0x1010),
     (0x0029, 0x1210), (0x0029, 0x1110), (0x0029, 0x1020), (0x0029, 0x1220),
@@ -193,7 +217,7 @@ def _get_chunks(tag, index, format, little_endian=True):
     return (size, chunks)
 
 
-def parse_protocol_data(protocol_data):
+def _parse_protocol_data(protocol_data):
     """Returns a dictionary containing the name/value pairs inside the
     "ASCCONV" section of the MrProtocol or MrPhoenixProtocol elements
     of a Siemens CSA Header tag.
