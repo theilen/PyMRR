@@ -32,7 +32,7 @@
 #       - set mask to True if mask==None
 #
 
-__version__ = '1.2.3'
+__version__ = '1.2.32'
 # $Source$
 
 import numpy as np
@@ -82,6 +82,13 @@ class MRRArray(np.ndarray):
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
                  }
+    _attributes_units = {"PTFT": "ms",
+                         "delta": "ms",
+                         "Delta": "ms",
+                         "maxGrad": "mT/m",
+                         "gradstart": "ms",
+                         "bvalue": "s/mm^2"
+                         }
 
     def __new__(cls, input_array, dev=None, mask=None, **keypar):
         # cast to custom class
@@ -115,21 +122,35 @@ class MRRArray(np.ndarray):
         return obj.view(type(self))
 
     def __str__(self):
-        s = "MRRArray of shape {}".format(self.shape)
-        if self.orig_file:
-            s += ", read from file {}".format(self.orig_file)
-        s += " ("
-        if not self.unwrapped:
-            s += "not "
-        s += "unwrapped)\n"
-        for name, unit in zip(
-                ["delta", "bvalue", "Delta", "maxGrad", "gradstart", "POST"],
-                ["ms"]*2 + ["s/mm^2"] + ["mT/m"] + ["ms"]*2):
-            s += "\t{:<9}:{:>10.3f} {}\n".format(
-                name, getattr(self, name), unit
-                )
+        s = self._get_attributes_string()
         s += super(MRRArray, self).__str__()
         return s
+
+    def _get_attributes_string(self):
+        "Create a nicely formatted string representation of the attributes"
+        print_dict = self._attributes.copy()
+        s = "MRRArray of shape {}".format(self.shape)
+        orig_file = print_dict.pop("orig_file")
+        if orig_file:
+            s += ", read from file {}".format(self.orig_file)
+        s += " ("
+        unwr = print_dict.pop("unwrapped")
+        if not unwr:
+            s += "not "
+        s += "unwrapped)\n"
+        maxlen = max([len(k) for k in print_dict.keys()])
+        for attr in print_dict.keys():
+            print attr, getattr(self._attributes_units, attr, "not found?")
+            s += "\t{0:<{3}}:{1:>10.3f} {2}\n".format(
+                attr, getattr(self, attr),
+                self._attributes_units.get(attr, ""),
+                maxlen
+                )
+        return s
+
+    def print_attributes(self):
+        "Print the MRRArray's attributes."
+        print self._get_attributes_string()
 
     # return fields as view of numpy.ndarray
     @property

@@ -194,7 +194,7 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
     result = []
     images = []
     index = 0
-    while index <= nofimages:
+    while index < nofimages:
         dc = read_dicom(files[index], mask=mask, verbose=verbose,
                         unwrap=unwrap, unwrapper=unwrapper)
         try:
@@ -206,8 +206,9 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
             # Collect data with same PTFT
             images.append(dc)
         else:
+            cond_print("new PTFT: {}".format(dc.PTFT), verbose)
             # Write all data in images into one MRRArray
-            seq_data = parse_parameters(files[0])
+            seq_data = parse_parameters(files[index-1])
             seq_data.update({"orig_file": os.path.basename(dicom_file),
                              "unwrapped": unwrap})
             shape = images[0].shape
