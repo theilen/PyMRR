@@ -43,6 +43,7 @@ from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
 
 
 __all__ = ["MRRArray", "empty", "empty_like",
+           "copy_attributes",
            "zeros", "zeros_like",
            "save", "load",
            "mrr_min", "mrr_max", "mrr_mean",
@@ -140,7 +141,6 @@ class MRRArray(np.ndarray):
         s += "unwrapped)\n"
         maxlen = max([len(k) for k in print_dict.keys()])
         for attr in print_dict.keys():
-            print attr, getattr(self._attributes_units, attr, "not found?")
             s += "\t{0:<{3}}:{1:>10.3f} {2}\n".format(
                 attr, getattr(self, attr),
                 self._attributes_units.get(attr, ""),
@@ -274,6 +274,12 @@ def empty(shape, **keyargs):
 def empty_like(a):
     '''Creates an empty MRRArray of shape a.shape.'''
     return MRRArray(np.empty(a.shape))
+
+
+def copy_attributes(a, b):
+    """Copy all attributes from b to a."""
+    for attr in a._attributes:
+        setattr(a, attr, getattr(b, attr, a._attributes[attr]))
 
 
 def zeros(shape, **keyargs):

@@ -79,7 +79,8 @@ def parse_parameters(dcm):
 
     # (Re-)calculate parameters
     parameters["Delta"] += parameters["delta"]  # to match Bernstein
-    if "PTFT_aver" in parameters:  # recalculate PTFT in case of variable seq
+    # recalculate PTFT in case of variable seq
+    if "PTFT_aver" in parameters and "PTFT_decr" in parameters:
         parameters["PTFT"] = _calc_ptft(dcm.InstanceNumber,
                                         parameters["PTFT"],
                                         parameters["PTFT_aver"],

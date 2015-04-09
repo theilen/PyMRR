@@ -49,7 +49,7 @@ import re
 from PIL import Image
 
 
-from ..mrrcore import MRRArray, cond_print, empty
+from ..mrrcore import MRRArray, cond_print, empty, copy_attributes
 from ..unwrapping import unwrap_array, valid_unwrapper
 from .parse_dicom import parse_parameters, variable_ptft
 
@@ -176,9 +176,10 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
 
     Returns
     -------
-    data : 3darray
-        MRRArray containing the read-in data. The first axis corresponds to the
-        image number.
+    data : 3darray | list of 3darrays
+        Read-in data. A MRRArray if only one PTFT was present, a list of
+        MRRArrays otherwise, sorted by PTFT. For every MRRArray, the first
+        axis corresponds to the image number.
     '''
     if unwrap is True and not valid_unwrapper(unwrapper):
         raise AttributeError('No algorithm named {}'.format(unwrapper))
@@ -208,22 +209,31 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
         else:
             cond_print("new PTFT: {}".format(dc.PTFT), verbose)
             # Write all data in images into one MRRArray
-            seq_data = parse_parameters(files[index-1])
-            seq_data.update({"orig_file": os.path.basename(dicom_file),
-                             "unwrapped": unwrap})
-            shape = images[0].shape
-            data = empty((len(images), shape[0], shape[1]), **seq_data)
-            for i, item in enumerate(images):
-                data[i] = item
-            result.append(data)
+            result.append(_collect_data(images))
+            # restart images with new PTFT
             images = []
+            images.append(dc)
         # Increase index before next file
         index += 1
+    # collect remaining data
+    if images:
+        result.append(_collect_data(images))
 
     if len(result) == 1:
         result = result[0]
+    else:
+        result.sort(key=lambda x: x.PTFT)
 
     return result
+
+
+def _collect_data(images):
+    shape = images[0].shape
+    data = empty((len(images), shape[0], shape[1]))
+    for i, item in enumerate(images):
+        data[i] = item
+    copy_attributes(data, images[0])
+    return data
 
 
 def read_mask(filename, check_invert=True):
