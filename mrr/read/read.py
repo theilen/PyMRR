@@ -247,7 +247,7 @@ def read_mask(filename, check_invert=True):
     '''
     mask = np.asarray(Image.open(filename), dtype=np.bool)
     if check_invert:
-        if mask[0, 0] is True:
+        if mask[0, 0]:
             return np.invert(mask)
     return mask
 
