@@ -342,7 +342,7 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
     except TypeError:
         pass
 
-    p = np.ma.masked_where(a.mask is False, a.phase)
+    p = np.ma.masked_where(np.invert(a.mask), a.phase)
 
     av, v1 = np.ma.average(p, axis, weights, returned=True)
     res = MRRArray(av, orig_file=a.orig_file, unwrapped=a.unwrapped)
@@ -353,7 +353,7 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
     var = np.ma.average((p-av)**2., axis=axis, weights=weights,
                         returned=False)
     if weighted and unbias:
-        v2 = np.ma.sum(np.ma.masked_where(a.mask==False, weights**2.),
+        v2 = np.ma.sum(np.ma.masked_where(np.invert(a.mask), weights**2.),
                        axis=axis)
         var /= (1 - v2/v1**2.)
     np.sqrt(var, out=res['dev'])
@@ -369,14 +369,14 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
 def mrr_min(array, axis=None, **kwargs):
     "Return the minimal phase value of array that has a valid mask."
 #    return array['phase'][array['mask']==True].min().item()
-    return array.phase[array['mask'] is True].min(axis=axis, **kwargs)
+    return array.phase[array['mask']].min(axis=axis, **kwargs)
     # ... .item()?
 
 
 def mrr_max(array, axis=None, **kwargs):
     "Return the maximum phase value of array that has a valid mask."
 #    return array['phase'][array['mask']==True].max().item()
-    return array.phase[array['mask'] is True].max(axis=axis, **kwargs)
+    return array.phase[array['mask']].max(axis=axis, **kwargs)
 
 
 def cond_print(string, verbose=True):
