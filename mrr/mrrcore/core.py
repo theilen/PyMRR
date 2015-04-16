@@ -141,11 +141,13 @@ class MRRArray(np.ndarray):
         s += "unwrapped)\n"
         maxlen = max([len(k) for k in print_dict.keys()])
         for attr in print_dict.keys():
-            s += "\t{0:<{3}}:{1:>10.3f} {2}\n".format(
-                attr, getattr(self, attr),
-                self._attributes_units.get(attr, ""),
-                maxlen
-                )
+            a_ = getattr(self, attr, None)
+            unit = self._attributes_units.get(attr, "")
+            if a_ is None:
+                sattr = ""
+            else:
+                sattr = "{:>10.3f} {2}".format(a_, unit)
+            s += "\t{0:<{2}}:{1}\n".format(attr, sattr, maxlen)
         return s
 
     def print_attributes(self):
@@ -331,34 +333,45 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
     result : MRRArray
         The mean of array along the given axis
     '''
+    # create weights
     if weighted:
         if not np.all(np.isfinite(np.sum(a.dev, axis=axis))):
             weighted = False
     weights = 1.0/a.variance if weighted else None
-
     # handle zeros in variance
     try:
-        weights[np.where(~np.isfinite(weights))] = a.variance.mean()  # ok?
+        # handle missing weights by setting the to the mean variance
+        # NOTE: maybe another value would be more meaningful here?
+        weights[np.where(~np.isfinite(weights))] = a.variance.mean()
     except TypeError:
         pass
 
-    p = np.ma.masked_where(np.invert(a.mask), a.phase)
+    # mask out masked pixels
+    # NOTE: comparison HAS to be == instead of 'is'
+    p = np.ma.masked_where(a.mask == False, a.phase)
 
+    # calculate average
     av, v1 = np.ma.average(p, axis, weights, returned=True)
+
+    # create new array
     res = MRRArray(av, orig_file=a.orig_file, unwrapped=a.unwrapped)
 
-    if axis:
-        if axis != 0:
-            av = np.expand_dims(av, axis)
+    # calculate deviation
+    if axis:  # add dimension to av to get subtraction right
+        av = np.expand_dims(av, axis)
+    # variance
     var = np.ma.average((p-av)**2., axis=axis, weights=weights,
                         returned=False)
+    # unbias in case of weights
     if weighted and unbias:
-        v2 = np.ma.sum(np.ma.masked_where(np.invert(a.mask), weights**2.),
+        v2 = np.ma.sum(np.ma.masked_where(a.mask == False, weights**2.),
                        axis=axis)
         var /= (1 - v2/v1**2.)
+    # set standard deviation in res
     np.sqrt(var, out=res['dev'])
 
-    res['mask'] = np.any(a.mask, axis=axis)
+    # set mask in res
+    res['mask'] = np.invert(np.ma.getmask(av))
 
     return res
 
