@@ -51,7 +51,7 @@ from PIL import Image
 
 from ..mrrcore import MRRArray, cond_print, empty, copy_attributes
 from ..unwrapping import unwrap_array, valid_unwrapper
-from .parse_dicom import parse_parameters, variable_ptft
+from .parse_dicom import parse_parameters
 
 
 __metaclass__ = type

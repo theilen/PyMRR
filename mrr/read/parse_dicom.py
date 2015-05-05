@@ -38,8 +38,6 @@ _PHOENIX_TAGS = {
 
 
 def parse_parameters(dcm):
-    if not isinstance(dcm, dicom.dataset.Dataset):
-        dcm = dicom.read_file(dcm, stop_before_pixels=True)
     """
     Parse specific fields out of the dicom-files CSA header.
 
@@ -63,6 +61,9 @@ def parse_parameters(dcm):
         PTFT_decr : float (if present)
             decrement in PTFT
     """
+    if not isinstance(dcm, dicom.dataset.Dataset):
+        dcm = dicom.read_file(dcm, stop_before_pixels=True)
+
     mrp = get_phoenix_protocol(dcm)
 
     parameters = {}
@@ -78,7 +79,8 @@ def parse_parameters(dcm):
         parameters["PTFT"] = 0.
 
     # (Re-)calculate parameters
-    parameters["Delta"] += parameters["delta"]  # to match Bernstein
+    if "Delta" in parameters:
+        parameters["Delta"] += parameters["delta"]  # to match Bernstein
     # recalculate PTFT in case of variable seq
     if "PTFT_aver" in parameters and "PTFT_decr" in parameters:
         parameters["PTFT"] = _calc_ptft(dcm.InstanceNumber,
