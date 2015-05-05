@@ -14,22 +14,49 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+_default_clabel_tex = {
+    "mask": r"mask",
+    "phase": r"$\phi\,\,\left[\frac{\mathrm{rad}}{2\pi}\right]$",
+    "dev": r"\Delta\phi\,\,\left[\frac{\mathrm{rad}}{2\pi}\right]$"
+    }
+
+_default_clabel_wtex = {
+    "mask": "mask",
+    "phase": "phase [rad/2pi]",
+    "dev": "Std. dev. phase [rad/2pi]"
+    }
+
+
+def _cbar_label(field):
+    try:
+        if plt.rcParams["text.usetex"] is True:
+            string = _default_clabel_tex[field]
+        else:
+            string = _default_clabel_wtex[field]
+    except KeyError:
+        string = ""
+    finally:
+        return string
+
 
 def display(img, field='phase',
             crop=False, crop_range=10,
             shrink_cbar=.9,
+            grid=True,
             hold=False,
+            ckwargs=None,
+            clabel=None,
             **kwargs):
     '''
     Display data of an MRRArray.
-    
+
     If dim(img) = 3 the first data-set in axis 0 is used.
     On default the phase-data is displayed, other fields may be displayed by
-    providing <field>. The image may be zoomed in based on img['mask']. To do 
+    providing <field>. The image may be zoomed in based on img['mask']. To do
     so, set crop=True.
-    
+
     The actual plotting of the data is done using plt.imshow(). All additional
-    key-arguments are passed through, so if you want to modify e.g. the 
+    key-arguments are passed through, so if you want to modify e.g. the
     colormap, please see the documentation of pyplot.
 
     Parameters
@@ -38,11 +65,11 @@ def display(img, field='phase',
         img-data to be visualized
     field : ['phase' | 'dev' | 'mask'] (optional)
         Which field to plot. Default: 'phase'
-        
+
     hold : [True | False] (optional)
         If True, the figure used to image the data will stay active, so that
         additional data can be plotted to the same image.
-        Default: False        
+        Default: False
 
     crop : [True | False] (optional)
         Wether to crop the image based on a['mask']
@@ -50,17 +77,24 @@ def display(img, field='phase',
         Adjusts the space around mask to be shown as well. Default: 10
     shrink_cbar : value (optional)
         Adjusts the size of the colorbar
-        
+    grid : [True | False] (optional)
+        Whether to draw a grid
+    ckwargs : dictionary
+        optional arguments to be passed to the colorbar() command.
+    clabel : string (optional)
+        Label for the colorbar. Set to "" to ignore labeling.
+
     Returns
     -------
     fig : matplotlib.figure
         Only if hold==True. The figure-object containing the image.
+    cbar : matplotlib.colorbar
     '''
     fig = plt.figure()
-    #crop 3d-arrays
+    # crop 3d-arrays
     if len(img.shape) == 3:
         img = img[0]
-    #crop image based on mask
+    # crop image based on mask
     if crop:
         try:
             ylims, xlims = crop_image(img, crop_range)
@@ -69,31 +103,46 @@ def display(img, field='phase',
         else:
             plt.xlim(xlims)
             plt.ylim(ylims[::-1])
-    #get phase-data
+
+    # get phase-data
     try:
         temp = img[field].view(np.ndarray)
     except ValueError:
         print 'Field \'%s\' not found!' % field
         temp = img
-    #plot
-    imshow_dict = {'cmap' : plt.get_cmap('Greys_r'),    #Colormap
-            'interpolation' : 'none'             #Interpolation between pixels
-            }
+
+    # plot
+    imshow_dict = {'cmap': plt.get_cmap('Greys_r'),  # colormap
+                   'interpolation': 'none'           # interpolation
+                   }
     imshow_dict.update(kwargs)
     plt.imshow(temp, **imshow_dict)
     plt.minorticks_on()
     plt.tick_params(which='both', direction='out')
-    plt.colorbar(shrink=shrink_cbar)
-    plt.grid()
+
+    # colorbar
+    colorbar_dict = {'shrink': shrink_cbar}
+    if ckwargs is not None:
+        colorbar_dict.update(ckwargs)
+    cbar = plt.colorbar(shrink=shrink_cbar)
+    if clabel is None:
+        clabel = _cbar_label(field)
+    if clabel:
+        cbar.set_label(cbar)
+
+    if grid:
+        plt.grid()
+
     if not hold:
-        plt.show() #setzt figure zurück
+        plt.show()  # setzt figure zurück
     else:
-        return fig
+        return fig, cbar
 
 
 def display_plain(img, field='phase',
                   crop=False, crop_range=10,
                   figwidth=4.0,
+                  grid=True,
                   hold=True,
                   **kwargs):
     '''
