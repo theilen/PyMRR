@@ -2,10 +2,12 @@
 
 from distutils.core import setup
 
-desc = 'Packagae for analyzing phase data obtained using magnetic resonance rheology.'
+from mrr import __version__
+
+desc = 'Package for analyzing phase data obtained using magnetic resonance rheology.'
 
 setup(name='mrr',
-      version='1.4.2.4',
+      version=__version__,
       description='Analyze MRR-data',
       long_description=desc,
       author='Sebastian Theilenberg',
