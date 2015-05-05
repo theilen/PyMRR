@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 _default_clabel_tex = {
     "mask": r"mask",
     "phase": r"$\phi\,\,\left[\frac{\mathrm{rad}}{2\pi}\right]$",
-    "dev": r"\Delta\phi\,\,\left[\frac{\mathrm{rad}}{2\pi}\right]$"
+    "dev": r"$\Delta\phi\,\,\left[\frac{\mathrm{rad}}{2\pi}\right]$"
     }
 
 _default_clabel_wtex = {
     "mask": "mask",
     "phase": "phase [rad/2pi]",
-    "dev": "Std. dev. phase [rad/2pi]"
+    "dev": "std. dev. phase [rad/2pi]"
     }
 
 
@@ -128,7 +128,7 @@ def display(img, field='phase',
     if clabel is None:
         clabel = _cbar_label(field)
     if clabel:
-        cbar.set_label(cbar)
+        cbar.set_label(clabel)
 
     if grid:
         plt.grid()
@@ -147,35 +147,35 @@ def display_plain(img, field='phase',
                   **kwargs):
     '''
     Display data of an MRRArray without additional elements, e.g. without axes,
-    colorbar, etc. This creates an output as the one of save_image() without 
+    colorbar, etc. This creates an output as the one of save_image() without
     saving the image.
-    
+
     All meaningful arguments work like the ones of display().
-    
+
     img : MRRArray
         img-data to be visualized
     field : ['phase' | 'dev' | 'mask'] (optional)
         Which field to plot. Default: 'phase'
-        
+
     hold : [True | False] (optional)
         If True, the figure used to image the data will stay active, so that
         additional data can be plotted to the same image.
-        Default: True       
+        Default: True
 
     crop : [True | False] (optional)
         Wether to crop the image based on a['mask']
     crop_range : int (optional)
         Adjusts the space around mask to be shown as well. Default: 10
-        
+
     The actual plotting of the data is done using plt.imshow(). All additional
-    key-arguments are passed through, so if you want to modify e.g. the 
+    key-arguments are passed through, so if you want to modify e.g. the
     colormap, please see the documentation of pyplot.
     '''
     imshow_dict = dict(interpolation='none',
                        cmap='Greys_r')
     imshow_dict.update(**kwargs)
 
-    #crop 3d-arrays
+    # crop 3d-arrays
     if len(img.shape) == 3:
         img = img[0]
 
@@ -193,7 +193,7 @@ def display_plain(img, field='phase',
         except ValueError:
             print 'Cropping not possible. Is there a mask present?'
             crop = False
-    if crop == False:
+    if crop is False:
         y_max, x_max = img.shape
         xlims, ylims = (0, x_max-1), (0, y_max-1)
     plt.xlim(xlims)
@@ -216,9 +216,9 @@ def display_plain(img, field='phase',
 
 def crop_image(array, crop_range=10):
     '''
-    Calculates x- and y-limits based on the masked of the provided array. 
-    
-    Returns ylims, xlims (tuple).    
+    Calculates x- and y-limits based on the masked of the provided array.
+
+    Returns ylims, xlims (tuple).
     If there is no masked present, ValueError is raised.
     '''
     if not valid_mask(array):
@@ -257,7 +257,7 @@ def parse_pd(pd):
 
 def valid_mask(array):
     '''
-    Returns True if array has a field 'mask' and at least one element has this 
+    Returns True if array has a field 'mask' and at least one element has this
     field set to 'False', and False otherwise.
     '''
     try:
