@@ -146,7 +146,7 @@ class MRRArray(np.ndarray):
             if a_ is None:
                 sattr = ""
             else:
-                sattr = "{:>10.3f} {2}".format(a_, unit)
+                sattr = "{:>10.3f} {}".format(a_, unit)
             s += "\t{0:<{2}}:{1}\n".format(attr, sattr, maxlen)
         return s
 
