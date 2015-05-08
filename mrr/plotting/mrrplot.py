@@ -257,9 +257,19 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
     # roll image axis to front
     np.rollaxis(data, imageaxis, 0)
 
+    # determine whether MRRArrays are present
+    try:
+        data[0][field]
+    except IndexError:
+        field = None
+
     if autoadjust:
-        vmin = min([d_.min() for d_ in data])
-        vmax = max([d_.max() for d_ in data])
+        if field is not None:
+            vmin = min([d_.dataview(field).min() for d_ in data])
+            vmax = max([d_.dataview(field).max() for d_ in data])
+        else:
+            vmin = min([d_.min() for d_ in data])
+            vmax = max([d_.max() for d_ in data])
     else:
         vmin = vmax = None
 
@@ -278,12 +288,10 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
                 ax.axis("off")
                 continue
             if averageaxis is not None:
-                img = data[i].mean(axis=averageaxis)
+                img = img.mean(axis=averageaxis)
             # extract data as numpy array
-            try:
+            if field is not None:
                 img = img[field].view(np.ndarray)
-            except ValueError:
-                pass
 
             ax.imshow(img, interpolation='None', cmap='Greys_r',
                       vmin=vmin, vmax=vmax)
