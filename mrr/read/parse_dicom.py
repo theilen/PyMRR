@@ -43,6 +43,8 @@ def parse_parameters(dcm):
 
     Returns a dictionary containing (name : value) pairs of the following
     parameters:
+        protocol : str
+            the protocol name of the measurement
         delta : float
             length of motion sensitizing gradient  in ms
         Delta : float
@@ -63,12 +65,14 @@ def parse_parameters(dcm):
     """
     dcm = _check_for_dicom_data(dcm)
 
+    parameters = {}
+    parameters["protocol"] = dcm.ProtocolName
+
     if not check_sequence(dcm):
-        return {}
+        return parameters
 
     mrp = get_phoenix_protocol(dcm)
 
-    parameters = {}
     for tag, specifier in _PHOENIX_TAGS.items():
         name, func = specifier
         try:
