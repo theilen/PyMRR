@@ -288,6 +288,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
                 ax.axis("off")
                 continue
             if averageaxis is not None:
+                # TODO imshow fails when img.dims > 2
                 img = img.mean(axis=averageaxis)
             # extract data as numpy array
             if field is not None:
