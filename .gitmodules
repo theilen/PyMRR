@@ -1,0 +1,3 @@
+[submodule "mrr/waveform/tektronix"]
+	path = mrr/waveform/tektronix
+	url = git://github.com/theilen/parse_tektronix.git
