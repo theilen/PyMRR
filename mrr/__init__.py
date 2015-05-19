@@ -94,7 +94,7 @@ from .plotting import *
 from .unwrapping import *
 from .timeline import normalize_image_set, broaden_mask
 #import timeline
-from . import waveform, unwrapping, bvalue, arc
+from . import waveform, unwrapping, bvalue, arc, coordinates
 
 
 def init_test():
