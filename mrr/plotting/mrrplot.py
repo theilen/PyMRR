@@ -290,7 +290,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
             if averageaxis is not None:
                 img = img.mean(axis=averageaxis)
             else:
-                if img.dims >= 3:
+                if img.ndim >= 3:
                     img = img[0]
             # extract data as numpy array
             if field is not None:
