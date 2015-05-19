@@ -1,5 +1,5 @@
 
-__version__ = '1.4.2.5b'
+__version__ = '1.4.3'
 # $Source$
 
 #Version history
