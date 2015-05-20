@@ -2,27 +2,33 @@
 
 from distutils.core import setup
 
-desc = 'Packagae for analyzing phase data obtained using magnetic resonance rheology.'
+from mrr import __version__
 
 setup(name='mrr',
-      version='1.4.2.4',
-      description='Analyze MRR-data',
-      long_description=desc,
+      version=__version__,
+      description="Pure python package to analyze MRR-phase-data",
+      long_description="""
+      mrr is a pure python package for analyzing phasedata obtained with
+      Magnetic Resonance Rheology. It provides simple data structures and
+      functions to work with the phase data, vizualize it and save the data.
+      """,
       author='Sebastian Theilenberg',
       author_email='theilenberg@hiskp.uni-bonn.de',
-      url="\\jarvis\Experimente\Kopfklappe\Eigene Programme\Python\mrr-package",
-      packages=['mrr',
-                'mrr.arc',
-                'mrr.bvalue',
-                'mrr.mrrcore',
-                'mrr.plotting',
-                'mrr.read',
-                'mrr.timeline',
-                'mrr.unwrapping',
-                'mrr.unwrapping.py_unwrap',
-                'mrr.unwrapping.py_unwrap.algorithms',
-                'mrr.unwrapping.py_unwrap.array_manipulation',
-                'mrr.unwrapping.py_unwrap.qualitymaps',
-                'mrr.waveform',
-                'mrr.write']
+      url="https://github.com/theilen/PyMRR.git",
+      packages=["mrr",
+                "mrr.arc",
+                "mrr.bvalue",
+                "mrr.mrrcore",
+                "mrr.plotting",
+                "mrr.read",
+                "mrr.timeline",
+                "mrr.unwrapping",
+                "mrr.unwrapping.py_unwrap",
+                "mrr.unwrapping.py_unwrap.algorithms",
+                "mrr.unwrapping.py_unwrap.array_manipulation",
+                "mrr.unwrapping.py_unwrap.qualitymaps",
+                "mrr.waveform",
+                "mrr.waveform.tektronix",
+                "mrr.write"
+                ]
       )
