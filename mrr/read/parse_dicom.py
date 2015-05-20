@@ -43,6 +43,8 @@ def parse_parameters(dcm):
 
     Returns a dictionary containing (name : value) pairs of the following
     parameters:
+        protocol : str
+            the protocol name of the measurement
         delta : float
             length of motion sensitizing gradient  in ms
         Delta : float
@@ -61,12 +63,16 @@ def parse_parameters(dcm):
         PTFT_decr : float (if present)
             decrement in PTFT
     """
-    if not isinstance(dcm, dicom.dataset.Dataset):
-        dcm = dicom.read_file(dcm, stop_before_pixels=True)
+    dcm = _check_for_dicom_data(dcm)
+
+    parameters = {}
+    parameters["protocol"] = dcm.ProtocolName
+
+    if not check_sequence(dcm):
+        return parameters
 
     mrp = get_phoenix_protocol(dcm)
 
-    parameters = {}
     for tag, specifier in _PHOENIX_TAGS.items():
         name, func = specifier
         try:
@@ -91,14 +97,24 @@ def parse_parameters(dcm):
     return parameters
 
 
+def _check_for_dicom_data(dcm, header_only=True):
+    if not isinstance(dcm, dicom.dataset.Dataset):
+        dcm = dicom.read_file(dcm, stop_before_pixels=header_only)
+    return dcm
+
+
 def variable_ptft(dcm):
     "Check, whether dcm is a dicom with variable PTFT."
-    if not isinstance(dcm, dicom.dataset.Dataset):
-        dcm = dicom.read_file(dcm, stop_before_pixels=True)
+    dcm = _check_for_dicom_data(dcm)
     if "PTFT_aver" in get_phoenix_protocol(dcm):
         return True
     else:
         return False
+
+
+def check_sequence(dcm):
+    dcm = _check_for_dicom_data(dcm)
+    return dcm.ProtocolName in ["nin_ep2d_diff_vb10r"]
 
 
 def _calc_ptft(index, fill, aver, decr):

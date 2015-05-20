@@ -1,5 +1,5 @@
 
-__version__ = '1.4.2.4'
+__version__ = '1.4.3'
 # $Source$
 
 #Version history
@@ -86,6 +86,11 @@ __version__ = '1.4.2.4'
 #- various bugfixes
 #- switched to timeline v0.9
 
+import os.path
+
+_ppath = os.path.dirname(os.path.realpath(__file__))
+_testpath = os.path.join(_ppath, './test/')
+
 
 from .mrrcore import *
 from .read import *
@@ -93,23 +98,8 @@ from .write import *
 from .plotting import *
 from .unwrapping import *
 from .timeline import normalize_image_set, broaden_mask
-#import timeline
-from . import waveform, unwrapping, bvalue, arc
+from . import waveform, unwrapping, bvalue, arc, coordinates, timeline
 
 
-def init_test():
-    '''
-    Only working when in WinPython root directory.
-    
-    Returns:
-    maske, data0, data1, no_motion, motion
-    '''
-    maske = read_mask('./MRR/Testdaten/55_mask.bmp')
-    display(maske)
-    data0 = read_dicom_set('./MRR/Testdaten/188_13-12-10_56_1',
-                               unwrap=True, mask=maske, verbose=False)
-    data1 = read_dicom_set('./MRR/Testdaten/188_13-12-10_54_1',
-                               unwrap=True, mask=maske, verbose=False)
-    no_motion = mean(data0, axis=0)
-    motion = mean(data1, axis=0)
-    return maske , data0, data1, no_motion, motion
+def return_test_path():
+    return os.path.normpath(_testpath)

@@ -78,7 +78,8 @@ class MRRArray(np.ndarray):
                    "Delta": None,
                    "maxGrad": None,
                    "gradstart": None,
-                   "bvalue": None
+                   "bvalue": None,
+                   "protocol": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -155,6 +156,10 @@ class MRRArray(np.ndarray):
         print self._get_attributes_string()
 
     # return fields as view of numpy.ndarray
+    def dataview(self, field):
+        "Return a view of self's field <field>."
+        return self[field].view(np.ndarray)
+
     @property
     def mask(self):
         "Return a view of self's mask."
