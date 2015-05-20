@@ -98,8 +98,7 @@ from .write import *
 from .plotting import *
 from .unwrapping import *
 from .timeline import normalize_image_set, broaden_mask
-# import timeline
-from . import waveform, unwrapping, bvalue, arc, coordinates
+from . import waveform, unwrapping, bvalue, arc, coordinates, timeline
 
 
 def return_test_path():
