@@ -230,6 +230,79 @@ def crop_image(array, crop_range=10):
     return ylims, xlims
 
 
+def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
+             autoadjust=False):
+    """
+    Creates a large overview plot displaying all images in array in a grid.
+    Written to be used with the data returned from read_dicom_set.
+
+    parameters:
+    -----------
+    array : array-like
+        data to be displayed. This may be a multi-dimensional array (at least
+        3D) or a list of arrays.
+    field : str, optional, default: "phase"
+        field to be displayed when using MRRArrays
+    nx : int, optional, default: 5
+        number of columns
+    imageaxis : int, optional, default: 0
+        axis of array to iterate over to find images
+    averageaxis : int or None, optional, default: 0
+        axis along to average the elements of array. If averaging is not
+        wanted, set to None
+    autoadjust : bool, optional, default: False
+        If set to True, all images span the same range of grey values.
+    """
+    data = np.asarray(array)
+    # roll image axis to front
+    np.rollaxis(data, imageaxis, 0)
+
+    # determine whether MRRArrays are present
+    try:
+        data[0][field]
+    except IndexError:
+        field = None
+
+    if autoadjust:
+        if field is not None:
+            vmin = min([d_.dataview(field).min() for d_ in data])
+            vmax = max([d_.dataview(field).max() for d_ in data])
+        else:
+            vmin = min([d_.min() for d_ in data])
+            vmax = max([d_.max() for d_ in data])
+    else:
+        vmin = vmax = None
+
+    n = data.shape[0]
+    ny = int(np.ceil(1.0*n/nx))
+    fig, axarr = plt.subplots(ny, nx, figsize=(nx*4.0, ny*3.5))
+
+    i = 0
+    for y in xrange(ny):
+        for x in xrange(nx):
+            ax = axarr[y, x]
+            # create average
+            try:
+                img = data[i]
+            except IndexError:
+                ax.axis("off")
+                continue
+            if averageaxis is not None:
+                img = img.mean(axis=averageaxis)
+            else:
+                if img.ndim >= 3:
+                    img = img[0]
+            # extract data as numpy array
+            if field is not None:
+                img = img[field].view(np.ndarray)
+
+            ax.imshow(img, interpolation='None', cmap='Greys_r',
+                      vmin=vmin, vmax=vmax)
+            ax.set_title("Image {}".format(i))
+
+            i += 1
+
+
 def parse_pd(pd):
     '''
     Parse an item of ( [x|(x0,x1),] y [, 'fmt'] ) and return the three possible
