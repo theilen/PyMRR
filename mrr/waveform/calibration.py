@@ -29,12 +29,11 @@ class Calibrate(object):
             self._dy = np.asarray(dy)
         self.result = None
 
-    def __call__(self, x, return_err=False):
+    def __call__(self, x, std=False):
         self._has_run()
-        m, n = self.result.beta
-        y = x*m + n
-        if return_err:
-            err = self._calc_err(x)
+        y = self._func_values(x)
+        if std:
+            err = self._func_err(x)
             return y, err
         return y
 
@@ -43,17 +42,20 @@ class Calibrate(object):
             raise AttributeError("No calibration present. Run Calibrate.run()"
                                  "first")
 
-    def _linear(P, x):
+    def _linear(self, P, x):
         "Linear function of regression."
         return P[0]*x + P[1]
 
-    def _calc_err(self, x):
-        dm, dn = self.result.sd_beta
-        return np.sqrt(dm**2.*(x-self._xm)**2. + dn**2.)
-
     def _func_values(self, x):
+        "Returns the calibrated values f(x) as np.array."
+        x = np.array(x)
         m, n = self.result.beta
         return x*m + n
+
+    def _func_err(self, x):
+        x = np.asarray(x)
+        dm, dn = self.result.sd_beta
+        return np.sqrt(dm**2.*(x-self._xm)**2. + dn**2.)
 
     def run(self):
         Model = odr.Model(self._linear)
@@ -69,16 +71,17 @@ class Calibrate(object):
         dx = self._x.max() - self._x.min()
         return (dy/dx, self._y[0] - self._x[0]*dy/dx)
 
-    def plot(self, title=None):
+    def plot(self, title=None, annotation=True):
         self._has_run()
         # find values
-        t_ = np.linspace(self._x.min() - 10, self._x.max(), 100)
-        err = self._calc_err(t_)
+        t_ = np.linspace(self._x.min() - 20, self._x.max(), 100)
+        err = self._func_err(t_)
         y = self._func_values(t_)
 
         plt.figure()
         if title is not None:
             plt.title(title)
+        plt.minorticks_on()
         # plot margin
         plt.fill_between(t_, y - err, y + err, alpha=0.2, color='teal')
         # plot function
@@ -86,6 +89,9 @@ class Calibrate(object):
         # plot measurement values
         plt.errorbar(self._x, self._y, yerr=self._dy, xerr=self._dx,
                      ls='none', color='blue')
+        # adjust xlim
+        if plt.xlim()[0] < 0:
+            plt.xlim(xmin=0)
         # add function
         if plt.rcParams["text.usetex"] is True:
             if ("\usepackage{siunitx}"
@@ -113,7 +119,7 @@ class Calibrate(object):
                 precisions[i] -= 1
         # create annotation string
         annotation = (r"$x = \SI{{{0:.{4}f}+-{1:.{4}f}}}"
-                      "{{\milli\meter\per\milli\volt}}\cdot U"
+                      "{{\milli\meter\per\milli\\volt}}\cdot U"
                       "+ \SI{{{2:.{5}f}+-{3:.{5}f}}}{{\milli\meter}}$"
                       ).format(m, dm, h, dh, *precisions)
 
