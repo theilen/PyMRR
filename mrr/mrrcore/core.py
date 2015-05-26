@@ -78,7 +78,8 @@ class MRRArray(np.ndarray):
                    "Delta": None,
                    "maxGrad": None,
                    "gradstart": None,
-                   "bvalue": None
+                   "bvalue": None,
+                   "protocol": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]

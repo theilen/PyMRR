@@ -264,9 +264,12 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
         field = None
 
     if autoadjust:
+        # TODO does not work if averageaxis and autoadjust is present
+        #       values have to be determined AFTER averaging
         if field is not None:
             vmin = min([d_.dataview(field).min() for d_ in data])
             vmax = max([d_.dataview(field).max() for d_ in data])
+            print vmin, vmax
         else:
             vmin = min([d_.min() for d_ in data])
             vmax = max([d_.max() for d_ in data])
@@ -290,7 +293,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
             if averageaxis is not None:
                 img = img.mean(axis=averageaxis)
             else:
-                if img.dims >= 3:
+                if img.ndim >= 3:
                     img = img[0]
             # extract data as numpy array
             if field is not None:

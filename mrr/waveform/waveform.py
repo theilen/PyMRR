@@ -38,33 +38,35 @@ import numpy as np
 from scipy import optimize
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
+import os.path
+
+from .tektronix import read_isf_files
 
 
+_read_sets = {'new': {'delimiter': ',',  # Spalten-Trennung
+                      'skip_header': 21,  # Header-Zeilen
+                      'unpack': True},
+              'old': {'delimiter': ',',  # Spalten-Trennung
+                      'skip_header': 6,  # Header-Zeilen
+                      'unpack': True,
+                      'start_col': 3}
+              }
 
-_read_sets = {   'new' : {'delimiter' : ',', #Spalten-Trennung
-                         'skip_header' : 21,   #Header-Zeilen
-                         'unpack' : True},
-                'old' : {'delimiter' : ',', #Spalten-Trennung
-                         'skip_header' : 6,   #Header-Zeilen
-                         'unpack' : True,
-                         'start_col' : 3}
-                }
-                
-                
+
 def get_waveform(filename, skip=5, read_in='new', **kwargs):
     '''
     Returns an array containing timepoints and the data of all saved channels.
-    To limit memory-use, not every timepoint is returned (to adjust this 
+    To limit memory-use, not every timepoint is returned (to adjust this
     behaviour see the keyword skip).
-    
+
     The order of the returned array is as follows:
-    
+
     index   data
     ---------------------------------------------------
     0       timepoints
     1...    channels
-    
-    
+
+
     Parameters
     ----------
     filename : string
@@ -73,22 +75,26 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
         number of timepoints to skip after every timepoint. Default: 5
     read_in : string
         which predefined set to use for the read_in of the file. Choose
-        either 'new' for the new small oscilloscope, or 'old' for the old 
+        either 'new' for the new small oscilloscope, or 'old' for the old
         bigger one. Default: 'new'
-    
+
     If read_in='old' is used, the file is supposed to contain only one channel,
     e.g. the first 3 columns are empty. These columns are discarded!
     If this behaviour is unwanted, use
         start_col=0
     to get all channels.
-    
-    Keyarguments are passed to np.genfromtxt used for loading the 
+
+    Keyarguments are passed to np.genfromtxt used for loading the
     waveform-data.
     To adjust use:
         delimiter : Symbol indicating fields.
         skip_header :  number of invalid rows in the beginning of the file.
     '''
-    
+    # TODO update docstring to incorporate binary files
+    binary_extensions = set([".isf"])
+    if os.path.splitext(filename)[-1].lower() in binary_extensions:
+        return read_isf_files(filename)[:, ::skip]
+
     try:
         D = _read_sets[read_in]
     except KeyError:

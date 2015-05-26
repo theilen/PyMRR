@@ -51,7 +51,7 @@ from PIL import Image
 
 from ..mrrcore import MRRArray, cond_print, empty, copy_attributes
 from ..unwrapping import unwrap_array, valid_unwrapper
-from .parse_dicom import parse_parameters
+from .parse_dicom import parse_parameters, check_sequence
 
 
 __metaclass__ = type
@@ -192,26 +192,33 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
     cond_print('Found {} file(s) in total'.format(nofimages), verbose)
 
     # Read files
+    # check for nin_ep2d_diff first
+    is_epi = check_sequence(files[0])
     result = []
     images = []
     index = 0
     while index < nofimages:
         dc = read_dicom(files[index], mask=mask, verbose=verbose,
                         unwrap=unwrap, unwrapper=unwrapper)
-        try:
-            ptft = images[-1].PTFT
-        except IndexError:
-            ptft = dc.PTFT
 
-        if dc.PTFT == ptft:
-            # Collect data with same PTFT
-            images.append(dc)
+        if is_epi:
+            # sort and divide epi files per PTFT
+            try:
+                ptft = images[-1].PTFT
+            except IndexError:
+                ptft = dc.PTFT
+
+            if dc.PTFT == ptft:
+                # Collect data with same PTFT
+                images.append(dc)
+            else:
+                cond_print("new PTFT: {}".format(dc.PTFT), verbose)
+                # Write all data in images into one MRRArray
+                result.append(_collect_data(images))
+                # restart images with new PTFT
+                images = []
+                images.append(dc)
         else:
-            cond_print("new PTFT: {}".format(dc.PTFT), verbose)
-            # Write all data in images into one MRRArray
-            result.append(_collect_data(images))
-            # restart images with new PTFT
-            images = []
             images.append(dc)
         # Increase index before next file
         index += 1
@@ -221,7 +228,7 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
 
     if len(result) == 1:
         result = result[0]
-    else:
+    elif is_epi:
         result.sort(key=lambda x: x.PTFT)
 
     return result
