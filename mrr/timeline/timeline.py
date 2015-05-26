@@ -94,37 +94,46 @@ def read_timeline(files, mask=None, unwrap=True,
         return Timeline, times
     else:
         return Timeline
-    
-    
-def calculate_jump(img1,img2):
+
+
+def calculate_jump(img1, img2):
     '''
     Calculates the mean difference of all pixel not masked between two images.
     '''
+    # only use pixels not masked out in any image
+    # (pixels are set to True if they are valid pixel)
     mask = img1.mask & img2.mask
-    return (img2-img1)[mask==True].mean().phase
+    return (img2 - img1)[mask == True].mean().phase
 
-   
-def normalize_image_set(img_set, threshold=0.7, verbose=True, test=False):
+
+def normalize_image_set(img_set, threshold=0.7, continuous=False,
+                        verbose=True, test=False):
     '''
-    Normalizes an image_set by adding or substracting 1.0 to all pixels of 
-    individual images.
+    Normalizes an image_set by recursively adding or substracting 1.0 to all
+    pixels of individual images.
     '''
-    for i,img in enumerate(img_set[1:]):
+    changed = False
+    for i, img in enumerate(img_set[1:]):
+        prior = img_set[i] if continuous else img_set[0]
         if verbose:
             print 'Normalizing Image %i...' % (i+1)
-        jump = calculate_jump(img_set[i],img)
+        jump = calculate_jump(prior, img)
         if test and verbose:
             print 'Durchschnittliche Abweichung: %f' % jump
         if jump > threshold:
             img_set[i+1] -= 1.0
+            changed = True
             if verbose:
-                print '\tSubtracted 1.0'            
+                print '\tSubtracted 1.0'
         elif jump <= -threshold:
             img_set[i+1] += 1.0
+            changed = True
             if verbose:
                 print '\tAdded 1.0'
-                
-                
+    if changed:
+        normalize_image_set(img_set, threshold, verbose, test)
+
+
 def broaden_mask(img, threshold=0.05, qual=None):
     """
     Mask pixels based on a quality map.
