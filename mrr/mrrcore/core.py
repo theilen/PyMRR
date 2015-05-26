@@ -114,8 +114,12 @@ class MRRArray(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
+        # new array from explicit constructor (atrributes will be set in
+        # MRRArray.__new__)
         if obj is None:
             return
+        # new array from view-casting or new-from-template
+        # (copy attributes)
         for attr in self._attributes:
             setattr(self, attr, getattr(obj, attr, self._attributes[attr]))
         # self.orig_file = getattr(obj, 'orig_file', None)
