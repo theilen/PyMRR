@@ -2,7 +2,7 @@
 """
 Created on Thu May 21 15:18:56 2015
 
-@author: theilenberg
+@author: Sebastian Theilenberg
 """
 
 
@@ -63,8 +63,7 @@ class Calibrate(object):
         initial = self._initial_guess()
         solver = odr.ODR(Data, Model, initial)
         self.result = solver.run()
-        for i, b in enumerate(self.result.beta):
-            print "{} +- {}".format(b, self.result.sd_beta[i])
+        return self.result.beta, self.result.sd_beta
 
     def _initial_guess(self):
         dy = self._y.max() - self._y.min()
@@ -92,18 +91,23 @@ class Calibrate(object):
         # adjust xlim
         if plt.xlim()[0] < 0:
             plt.xlim(xmin=0)
+        # labels
+        plt.xlabel(r"$U\,\,\left[\si{\milli\volt}\right]$")
+        plt.ylabel(r"$x\,\,\left[\si{\milli\meter}\right]$")
         # add function
-        if plt.rcParams["text.usetex"] is True:
-            if ("\usepackage{siunitx}"
-                    not in plt.rcParams["text.latex.preamble"]):
-                warn("Matplotlib.pyplot not fully configured to use"
-                     "tex with siunitx. Add '\usepackage{siunitx}'"
-                     "to rcParams['text.latex.preambel']",
-                     UserWarning)
-            else:
-                annotation = self._create_annotation()
-                plt.annotate(annotation, xy=(0.08, 0.82),
-                             xycoords="axes fraction")
+        if annotation:
+            # check latex settings
+            if plt.rcParams["text.usetex"] is True:
+                if ("\usepackage{siunitx}"
+                        not in plt.rcParams["text.latex.preamble"]):
+                    warn("Matplotlib.pyplot not fully configured to use"
+                         "tex with siunitx. Add '\usepackage{siunitx}'"
+                         "to rcParams['text.latex.preambel']",
+                         UserWarning)
+                else:
+                    annotation = self._create_annotation()
+                    plt.annotate(annotation, xy=(0.08, 0.82),
+                                 xycoords="axes fraction")
 
     def _create_annotation(self):
         m, h = self.result.beta
