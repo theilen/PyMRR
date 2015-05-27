@@ -39,8 +39,15 @@ def read_out_markers(imgset, header, indices=[], zoom=True, average=True):
         plt.gca().add_artist(Ellipse((c, r), a, b, fill=False, color='red'))
         plt.title("Slice {}".format(s))
         if zoom:
-            plt.ylim(r+b, r-b)
-            plt.xlim(c-a, c+a)
+            ymin, ymax = r+b, max(0, r-b)
+            xmin, xmax = max(0, c-a), c+a
+            plt.ylim(ymin, ymax)
+            plt.xlim(xmin, xmax)
+            # yaxis is counting fromhigher to lower values, therefore switch
+            # ymin and ymax in array slicing
+            visible = imgset[s][ymax:ymin, xmin:xmax]
+            vmin, vmax = visible.min(), visible.max()
+            plt.clim(vmin, vmax)
 
         print "Marker {:>3} in slice {:>3}: {:>9.3f}{:>9.3f}{:>9.3f}".format(i, s, *pos)
 
