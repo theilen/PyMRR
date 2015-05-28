@@ -17,7 +17,7 @@ from ..plotting import display
 
 def read_out_markers(imgset, header, indices=[], zoom=True, average=True):
     """
-    
+    indices: [r, c, s, a, b]
     """
     coordinates = []
     M = get_matrix(header)
