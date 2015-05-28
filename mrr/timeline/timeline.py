@@ -130,7 +130,7 @@ def normalize_image_set(img_set, threshold=0.7, continuous=False,
             changed = True
             if verbose:
                 print '\tAdded 1.0'
-    if changed:
+    if changed is True:
         normalize_image_set(img_set, threshold, verbose, test)
 
 
