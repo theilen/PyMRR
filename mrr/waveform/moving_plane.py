@@ -86,7 +86,11 @@ class moving_plane():
 #        azimuth = (math.atan2(y, x) + 2.*math.pi) % (2.*math.pi)
 #        return incl, azimuth
 
-    def inclination(self, t, axis, deg=True):
+    def inclination(self, t):
+        "Return the inclination of n with respect to the negative y-axis."
+        return self.orientation(t, axis=np.array([0, -1 ,0]))
+
+    def orientation(self, t, axis, deg=True):
         n = self._construct_n(t)
         axis = axis/np.linalg.norm(axis, ord=2)
         angle = math.acos(np.dot(n, axis))
@@ -94,10 +98,11 @@ class moving_plane():
             angle = math.degrees(angle)
         return angle
 
-    def azimuth(self, t, axis, deg=True):
-        # TODO azimuth with respect to arbitrary axis
-        pass
-
+    def azimuth(self, t, deg=True):
+        "Return the azimuth with respect to the negative y-axis."
+        x, y, z = self._construct_n(t)
+        azimuth = (math.atan2(z, x) + 2.*math.pi) % (2.*math.pi)
+        return math.degrees(azimuth)
 
     def get_orientation(self, t):
         """
