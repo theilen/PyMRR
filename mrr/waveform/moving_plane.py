@@ -59,14 +59,26 @@ class moving_plane(object):
         Return the coordinate index at time t with given two coordinates 
         coords. coords in the form [x, y, z] with only two of them given.
         """
-        n = self._construct_n(t)
-        res = np.dot(self._basepoint(t), n)  # constant of normal form
-        for i in range(3):
-            if i == index:
-                continue
-            else:
-                res -= n[i] * coords.pop(0)
-        return res/n[index]
+        try:
+            len(t)
+        except TypeError:
+            t = [t]
+        finally:
+            t = np.array(t)
+
+        result = np.empty(t.shape)
+        for i in range(t.size):
+            coords_ = coords[:]
+            t_ = t[i]
+            n = self._construct_n(t_)
+            res = np.dot(self._basepoint(t_), n)  # constant of normal form
+            for c in range(3):
+                if c == index:
+                    continue
+                else:
+                    res -= n[c] * coords_.pop(0)
+            result[i] = res/n[index]
+        return result
 
     def x(self, t, y, z):
         "Returns the x-component of a point in the yz-plane at time t."
