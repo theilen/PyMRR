@@ -263,44 +263,52 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
     except IndexError:
         field = None
 
-    if autoadjust:
-        if field is not None:
-            vmin = min([d_.dataview(field).min() for d_ in data])
-            vmax = max([d_.dataview(field).max() for d_ in data])
-        else:
-            vmin = min([d_.min() for d_ in data])
-            vmax = max([d_.max() for d_ in data])
-    else:
-        vmin = vmax = None
-
     n = data.shape[0]
     ny = int(np.ceil(1.0*n/nx))
     fig, axarr = plt.subplots(ny, nx, figsize=(nx*4.0, ny*3.5))
+    images = np.empty_like(axarr)
 
+    vmin = 0
+    vmax = 0
     i = 0
-    for y in xrange(ny):
-        for x in xrange(nx):
-            ax = axarr[y, x]
-            # create average
+    for (y, x), ax in np.ndenumerate(axarr):
+        # prepare data
+        try:
+            img = data[i]
+        except IndexError:
+            ax.axis("off")
+            continue
+        if averageaxis is not None:
+            img = img.mean(axis=averageaxis)
+        else:
+            if img.ndim >= 3:
+                img = img[0]
+        # extract data as numpy array
+        if field is not None:
+            img = img[field].view(np.ndarray)
+        # save range of values
+        vmin = min(vmin, img.min())
+        vmax = max(vmin, img.max())
+        # plot
+        images[y, x] = ax.imshow(img, cmap='Greys_r',
+                                 interpolation='None')
+        title_string = "Image {}".format(i)
+        try:
+            title_string += " (PTFT={})".format(img.PTFT)
+        except AttributeError:
+            pass
+        ax.set_title(title_string)
+
+        i += 1
+
+    # adjust color scale
+    if autoadjust:
+        for (y,x) in np.ndindex(images.shape):
             try:
-                img = data[i]
-            except IndexError:
-                ax.axis("off")
-                continue
-            if averageaxis is not None:
-                img = img.mean(axis=averageaxis)
-            else:
-                if img.ndim >= 3:
-                    img = img[0]
-            # extract data as numpy array
-            if field is not None:
-                img = img[field].view(np.ndarray)
+                images[y, x].set_clim(vmin, vmax)
+            except AttributeError:
+                break
 
-            ax.imshow(img, interpolation='None', cmap='Greys_r',
-                      vmin=vmin, vmax=vmax)
-            ax.set_title("Image {}".format(i))
-
-            i += 1
 
 
 def parse_pd(pd):
