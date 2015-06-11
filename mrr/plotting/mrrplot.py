@@ -294,7 +294,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
                                  interpolation='None')
         title_string = "Image {}".format(i)
         try:
-            title_string += " (PTFT={})".format(img.PTFT)
+            title_string += " (PTFT={})".format(data[i].PTFT)
         except AttributeError:
             pass
         ax.set_title(title_string)

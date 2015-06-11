@@ -131,7 +131,7 @@ def normalize_image_set(img_set, threshold=0.7, continuous=False,
             if verbose:
                 print '\tAdded 1.0'
     if changed is True:
-        normalize_image_set(img_set, threshold, verbose, test)
+        normalize_image_set(img_set, threshold, continuous, verbose, test)
 
 
 def broaden_mask(img, threshold=0.05, qual=None):
