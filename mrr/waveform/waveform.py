@@ -91,6 +91,7 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
         skip_header :  number of invalid rows in the beginning of the file.
     '''
     # TODO update docstring to incorporate binary files
+    filename = os.path.abspath(filename)
     binary_extensions = set([".isf"])
     if os.path.splitext(filename)[-1].lower() in binary_extensions:
         return read_isf_files(filename)[:, ::skip]
