@@ -42,9 +42,33 @@ def read_out_markers(imgset, header, indices=[], zoom=True, average=True):
             plt.ylim(r+b, r-b)
             plt.xlim(c-a, c+a)
 
-        print "Marker {:>3} in slice {:>3}: {:>9.3f}{:>9.3f}{:>9.3f}".format(i, s, *pos)
+        pstring = ("Marker {:>3} in slice {:>3}: "
+                   "{:>9.3f}{:>9.3f}{:>9.3f}").format(i, s, *pos)
+        print pstring
 
     coordinates = np.asarray(coordinates)
     if average:
         coordinates = coordinates.mean(axis=0)
     return coordinates
+
+
+left_correction = (39.1, 0.0, -29.55)
+right_correction = (-37.9, 0.0, -29.55)
+cranial_correction = (0.0, 0.0, 26.0)
+
+corrections = (left_correction,
+               right_correction,
+               cranial_correction)
+
+
+def correct_positions(left=None, right=None, cranial=None):
+    m_counter = 0
+    for marker in [left, right, cranial]:
+        if marker is not None:
+            if not marker.size == 3:
+                raise ValueError(
+                    "coordinates should be 3D (got {})".format(marker)
+                    )
+            marker += corrections[m_counter]
+        m_counter += 1
+    
