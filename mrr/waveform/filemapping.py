@@ -18,7 +18,21 @@ from ..read import parse_parameters
 
 _extensions = set(['.isf', '.csv'])
 
-def copy_wavefiles(source, destination, timezoneadjust=10000, test=False):
+def copy_wavefiles(source, destination, timezoneadjust=1, test=False):
+    """
+    Copy waveforms while adding a timestamp of the original creation time.
+    
+    Parameters
+    ----------
+    source : str
+        directory of waveform files
+    destination : str
+        directory to copy to
+    timezoneadjust : int
+        hours to add to the found time to adjust for wrongly represented
+        timezones
+    """
+    timezoneadjust *= 10000
     source = os.path.abspath(source)
     destination = os.path.abspath(destination)
     
@@ -49,7 +63,9 @@ def copy_wavefiles(source, destination, timezoneadjust=10000, test=False):
 
 def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
     """
-    Parameters:
+    Returns a list of dicom filenames and their creation times.
+    
+    Parameters
     -----------
     dirpath : str
         path to the directory of the dicom-files
@@ -103,7 +119,9 @@ def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
 
 def create_osci_times(dirpath, acquisitiondate):
     """
-    Parameters:
+    Create a list of waveform files and their creation time.
+    
+    Parameters
     -----------
     dirpath : str
         path to the directory of the waveform-files
@@ -134,13 +152,27 @@ def create_osci_times(dirpath, acquisitiondate):
 
 
 def _find_mean_difference(datalist, mean=3.0):
+    """
+    Find the mean difference of data ignoring extreme values.
+    """
     data = np.diff([item[-1] for item in datalist])
     indices = np.where(np.isclose(data, mean, atol=1.0))
     return data[indices].mean()
 
 
 def map_files(dcmlist, osclist, tr=3.0, verbose=False):
+    """
+    Map waveform files to dicom files by creation time.
     
+    Parameters
+    ----------
+    dcmlist : list
+        list of dicom files as created by create_dicom_times
+    osclist : list
+        list of waveform files as created by create_osci_files
+    tr : float
+        time between consecutive dicoms
+    """
     if verbose:
         print "{} dicom files, {} waveforms".format(len(dcmlist), len(osclist))
     
@@ -223,6 +255,9 @@ $\tau$ [\si{\milli\second}]
 
 
 def print_mapping(filename, filemapping, title=""):
+    """
+    Print a filemapping to a tex-file.
+    """
     with open(filename + '.tex', 'w') as f:
         f.write(_create_latex_header(title))
 
@@ -242,9 +277,15 @@ def print_mapping(filename, filemapping, title=""):
 
 
 def save_mapping(filename, filemapping):
+    """
+    Save a filemapping to disk using pickle.
+    """
     with open(filename + '.pkl', 'wb') as f:
         pickle.dump(filemapping, f, protocol=pickle.HIGHEST_PROTOCOL)
     return True
 
 def load_mapping(filename):
+    """
+    Load a filemapping from disk.
+    """
     return pickle.load(filename)
