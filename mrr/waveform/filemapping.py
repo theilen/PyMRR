@@ -117,10 +117,10 @@ def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
     return dcmtimes
         
 
-def create_osci_times(dirpath, acquisitiondate):
+def create_osci_times(dirpath, acquisitiondate, timezonecorrection=0):
     """
     Create a list of waveform files and their creation time.
-    
+
     Parameters
     -----------
     dirpath : str
@@ -141,12 +141,20 @@ def create_osci_times(dirpath, acquisitiondate):
         base, ext = os.path.splitext(f)
         traw = base.split('_')[-1]
         tstring, subsec = traw.split('.')
+        # add timezone correction if needed
+        # TODO handle overflow to next month
+        new_hour = int(tstring[:2]) + timezonecorrection
+        if new_hour > 23:
+            new_hour = new_hour % 24
+            new_day = int(acquisitiondate[-2:]) + 1
+            acquisitiondate = acquisitiondate[:6] + str(new_day)
+        tstring =  "{:>02}".format(new_hour) + tstring[2:]
         t_ = time.strptime(acquisitiondate + tstring, "%Y%m%d%H%M%S")
         t_epoch = time.mktime(t_)
         # add subseconds
         t_epoch += float("0." + subsec)
         osclist.append((f, t_epoch))
-    
+
     osclist.sort(key=lambda x: x[-1])
     return osclist
 
@@ -222,7 +230,7 @@ def map_files(dcmlist, osclist, tr=3.0, verbose=False):
 
 def _create_latex_header(title=""):
     head = latex_head['preamble']
-    head += r"\author{{{}}}".format(latex_head['title'])
+    head += r"\author{{{}}}\n".format(title)
     head += latex_head['header']
     return head
 
@@ -233,7 +241,8 @@ latex_head = {'preamble': r"""\documentclass[8pt]{{article}}
 \usepackage{siunitx}
 \usepackage{longtable}
 \usepackage[top=1cm, bottom=1.5cm]{geometry}
-\title{Mapping Dicom and Oszilloscope Files}""",
+\title{Mapping Dicom and Oszilloscope Files}
+""",
 'title': "",
 'header': r"""\date{}
 \begin{document}
