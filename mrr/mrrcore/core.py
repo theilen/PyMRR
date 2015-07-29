@@ -37,6 +37,7 @@ __version__ = '1.2.32'
 
 import numpy as np
 import os
+import math
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
@@ -384,6 +385,59 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
 
     return res
 
+
+def mean_phasor(array, axis=None):
+    """
+    Returns the angles of the mean phasor along axis.
+    
+    Parameters:
+    -----------
+    array : MRRArray
+        contains the phase data in multiples of 2*pi. Data is supposed to be
+        mapped to the range of [0, 1].
+    axis : int | None
+        the mean phase and standard deviation are computed along this axis.
+    """
+    result = zeros(array.shape).mean(axis=axis)
+    copy_attributes(result, array)
+    result['phase'] = _mean_phasor_angle(array.phase*2.*math.pi, axis=axis)
+    result['dev'] = _std_phasor_angle(array.phase*2.*math.pi,
+                            mean_phase=result.phase,
+                            axis=axis)
+    # return array mapped to [0, 1]
+    return result/2./math.pi
+
+
+def _std_phasor_angle(array, mean_phase=None, axis=None):
+    """
+    The standard deviation of the phases in array (in radians) along axis.
+    """
+    if mean_phase is None:
+        mean_phase = _mean_phasor_angle(array, axis)
+    # TODO: check whether mean_phase matches array's shape
+    temp = np.cos(array)*np.cos(mean_phase) + np.sin(array)*np.sin(mean_phase)
+    # variance in multiples of 2pi
+    diff_angles = np.arccos(temp)
+    n = array.size if axis is None else diff_angles.shape[axis]
+    # TODO use n or n-1?
+    var = np.sum(diff_angles**2., axis=axis)/n
+    return np.sqrt(var)
+
+
+def _mean_phasor_angle(array, axis=None):
+    """
+    mean phase angle of phases in array (in radians) along axis.
+    """
+    x = np.cos(array)
+    y = np.sin(array)
+    res = np.arctan2(y.mean(axis=axis), x.mean(axis=axis))
+    # map to [0, 2pi]
+    res = (res + 2.*math.pi) % (2.*math.pi)
+    # wrap to range [0, 2pi]
+    res = res
+    res[res<0.0] += 2.*math.pi
+    res[res>2.*math.pi] -= 2.*math.pi
+    return res
 
 # miscellaneous
 # -------------
