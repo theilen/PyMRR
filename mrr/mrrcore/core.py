@@ -423,8 +423,7 @@ def _std_phasor_angle(array, mean_phase=None, axis=None):
     # TODO: handle invalid values in arccos
     diff_angles = np.arccos(temp)
     n = array.size if axis is None else diff_angles.shape[axis]
-    # TODO use n or n-1?
-    var = np.sum(diff_angles**2., axis=axis)/n
+    var = np.sum(diff_angles**2., axis=axis)/(n-1)
     return np.sqrt(var)
 
 
