@@ -34,7 +34,8 @@ max = mrr_max
 mean = mrr_mean
 
 __all__ = ["MRRArray", "empty", "empty_like", "zeros", "zeros_like",
-           "min", "max", "load", "save", "mean", "cond_print"]  # core
+           "min", "max", "load", "save", "mean", "mean_phasor",
+           "cond_print"]  # core
 
 __all__.extend(["add", "div", "divide", "mult", "multiply", "sub", "subtract",
                 "power"])  # arithmetics
