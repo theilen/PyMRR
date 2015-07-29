@@ -398,8 +398,10 @@ def mean_phasor(array, axis=None):
     axis : int | None
         the mean phase and standard deviation are computed along this axis.
     """
+    # TODO handle masks
     result = zeros(array.shape).mean(axis=axis)
     copy_attributes(result, array)
+    result['mask'] = array.mask[0]
     result['phase'] = _mean_phasor_angle(array.phase*2.*math.pi, axis=axis)
     result['dev'] = _std_phasor_angle(array.phase*2.*math.pi,
                             mean_phase=result.phase,
@@ -412,11 +414,13 @@ def _std_phasor_angle(array, mean_phase=None, axis=None):
     """
     The standard deviation of the phases in array (in radians) along axis.
     """
+    # TODO handle masks
     if mean_phase is None:
         mean_phase = _mean_phasor_angle(array, axis)
     # TODO: check whether mean_phase matches array's shape
     temp = np.cos(array)*np.cos(mean_phase) + np.sin(array)*np.sin(mean_phase)
     # variance in multiples of 2pi
+    # TODO: handle invalid values in arccos
     diff_angles = np.arccos(temp)
     n = array.size if axis is None else diff_angles.shape[axis]
     # TODO use n or n-1?
@@ -428,6 +432,7 @@ def _mean_phasor_angle(array, axis=None):
     """
     mean phase angle of phases in array (in radians) along axis.
     """
+    # TODO handle masks
     x = np.cos(array)
     y = np.sin(array)
     res = np.arctan2(y.mean(axis=axis), x.mean(axis=axis))
