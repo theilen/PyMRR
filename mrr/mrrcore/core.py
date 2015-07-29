@@ -47,7 +47,7 @@ __all__ = ["MRRArray", "empty", "empty_like",
            "copy_attributes",
            "zeros", "zeros_like",
            "save", "load",
-           "mrr_min", "mrr_max", "mrr_mean",
+           "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
            "cond_print"
            ]
 
