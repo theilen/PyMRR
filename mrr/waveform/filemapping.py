@@ -328,4 +328,6 @@ def load_mapping(filename):
     """
     Load a filemapping from disk.
     """
-    return pickle.load(filename)
+    with open(filename, 'rb') as f:
+        mapping = pickle.load(f)
+    return mapping
