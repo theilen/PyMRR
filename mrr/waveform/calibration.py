@@ -11,16 +11,20 @@ from scipy import odr
 import numpy as np
 import matplotlib.pyplot as plt
 from warnings import warn
+import pickle
 
 
 class Calibrate(object):
 
-    def __init__(self, x, y, dx=None, dy=None):
-        self._x = np.asarray(x)
-        self._xm = self._x.mean()
-        _len = len(x)
-        assert len(y) == _len
-        self._y = np.asarray(y)
+    def __init__(self, x=None, y=None, dx=None, dy=None):
+        if np.any(x):
+            if not np.any(y):
+                raise ValueError("no y-values provided!")
+            self._x = np.asarray(x)
+            self._xm = self._x.mean()
+            _len = len(x)
+            assert len(y) == _len
+            self._y = np.asarray(y)
         if dx is not None:
             assert len(dx) == _len
             self._dx = np.asarray(dx)
@@ -36,6 +40,15 @@ class Calibrate(object):
             err = self._func_err(x)
             return y, err
         return y
+
+    def save(self, filename):
+        self._has_run()
+        with open(filename, 'wb') as f:
+            pickle.dump(self.result, f)
+
+    def load(self, filename):
+        with open(filename, 'rb') as f:
+            self.result = pickle.load(f)
 
     def _has_run(self):
         if self.result is None:
