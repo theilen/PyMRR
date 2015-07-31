@@ -11,6 +11,7 @@ from scipy import odr
 import numpy as np
 import matplotlib.pyplot as plt
 from warnings import warn
+import pickle
 
 
 class Calibrate(object):
@@ -36,6 +37,15 @@ class Calibrate(object):
             err = self._func_err(x)
             return y, err
         return y
+
+    def save(self, filename):
+        self._has_run()
+        with open(filename, 'wb') as f:
+            pickle.dump(self.result, f)
+
+    def load(self, filename):
+        with open(filename, 'rb') as f:
+            self.result = pickle.load(f)
 
     def _has_run(self):
         if self.result is None:
