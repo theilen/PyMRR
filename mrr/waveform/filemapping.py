@@ -293,8 +293,11 @@ def save_mapping(filename, filemapping):
         pickle.dump(filemapping, f, protocol=pickle.HIGHEST_PROTOCOL)
     return True
 
+
 def load_mapping(filename):
     """
     Load a filemapping from disk.
     """
-    return pickle.load(filename)
+    with open(filename, 'rb') as f:
+        mapping = pickle.load(f)
+    return mapping
