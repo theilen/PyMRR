@@ -16,12 +16,15 @@ import pickle
 
 class Calibrate(object):
 
-    def __init__(self, x, y, dx=None, dy=None):
-        self._x = np.asarray(x)
-        self._xm = self._x.mean()
-        _len = len(x)
-        assert len(y) == _len
-        self._y = np.asarray(y)
+    def __init__(self, x=None, y=None, dx=None, dy=None):
+        if np.any(x):
+            if not np.any(y):
+                raise ValueError("no y-values provided!")
+            self._x = np.asarray(x)
+            self._xm = self._x.mean()
+            _len = len(x)
+            assert len(y) == _len
+            self._y = np.asarray(y)
         if dx is not None:
             assert len(dx) == _len
             self._dx = np.asarray(dx)
