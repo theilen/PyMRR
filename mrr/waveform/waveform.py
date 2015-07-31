@@ -162,9 +162,10 @@ def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
     """
     waves = []
     for f in filenames:
-        if not os.path.isfile(f):
+        try:
+            wave = get_waveform(f, skip=skip, read_in=read_in, **kwargs)
+        except IOError:
             continue
-        wave = get_waveform(f, skip=skip, read_in=read_in, **kwargs)
         # correct to maximum of pulse
         t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius)
         wave[0] -= t0
@@ -175,6 +176,8 @@ def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
                 wave[c] = smooth(wave[c], window_len=smoothing)
         # save time and optical channels
         waves.append(wave[[0, 2, 3, 4]])
+    if len(waves) == 0:
+        raise IOError("No files found!")
     # create new sample points
     tmin = max([a[0, 0] for a in waves])
     tmax = min([a[0, -1] for a in waves])
