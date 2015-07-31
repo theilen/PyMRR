@@ -14,6 +14,11 @@ from warnings import warn
 import pickle
 
 
+def cal_from_file(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+
+
 class Calibrate(object):
 
     def __init__(self, x=None, y=None, dx=None, dy=None):
@@ -44,11 +49,7 @@ class Calibrate(object):
     def save(self, filename):
         self._has_run()
         with open(filename, 'wb') as f:
-            pickle.dump(self.result, f)
-
-    def load(self, filename):
-        with open(filename, 'rb') as f:
-            self.result = pickle.load(f)
+            pickle.dump(self, f)
 
     def _has_run(self):
         if self.result is None:
