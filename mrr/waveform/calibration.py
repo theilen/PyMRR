@@ -54,6 +54,11 @@ class Calibrate(object):
             self._dy = np.asarray(dy)
         self._correct_to_cg()
 
+    @property
+    def slope(self):
+        self._has_run()
+        return np.hstack((self.result.beta, self.result.sd_beta))
+
     def _correct_to_cg(self):
         self._x -= self._xm
         self._y -= self._ym
