@@ -85,7 +85,7 @@ class moving_plane(object):
         'Returns the planes coefficients (n1, n2, n3, d) at time t.'
         return self._return_result(self._create_plane(t))
 
-    def _return_result(result, std=False):
+    def _return_result(self, result, std=False):
         if std:
             return _uncert_nominal(result), _uncert_deviation(result)
         else:
@@ -129,19 +129,19 @@ class moving_plane(object):
         finally:
             t = np.array(t)
 
-        result = np.empty(t.shape)
+        result = []
         for i in range(t.size):
             coords_ = coords[:]
             t_ = t[i]
             n = self._construct_n(t_)
-            res = np.dot(self._get_points(t_, 3), n)  # constant of normal form
+            res = np.dot(self._get_points(t_, 2), n)  # constant of normal form
             for c in range(3):
                 if c == index:
                     continue
                 else:
                     res -= n[c] * coords_.pop(0)
-            result[i] = res/n[index]
-        return result
+            result.append(res/n[index])
+        return np.array(result)
 
     def x(self, t, y, z, std=False):
         "Returns the x-component of a point in the yz-plane at time t."
@@ -149,7 +149,8 @@ class moving_plane(object):
 
     def y(self, t, x, z, std=False):
         "Returns the y-component of a point in the xz-plane at time t."
-        return self._return_result(self._calc_param(t, 1, [x, z]), std)
+        y = self._calc_param(t, 1, [x, z])
+        return self._return_result(y, std)
 
     def z(self, t, x, y, std=False):
         "Returns the z-component of a point in the xy-plane at time t."
