@@ -25,11 +25,11 @@ def _uncert_array(x, sx, syst):
     Returns a uarray if possible, else a np.array ignoring the uncertainties.
     """
     if UNCERT is True:
-        arr = unumpy.uarray(x, sx)
+        arr = unumpy.uarray(x, np.abs(sx))
         # bulid array of systematic uncertainties
         systarr = []
         for s in syst:
-            systarr.append(ufloat(0., s, tag='systematic'))
+            systarr.append(ufloat(0., abs(s), tag='systematic'))
         arr += np.array(systarr)
     else:
         arr = np.array(x)
