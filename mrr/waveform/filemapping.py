@@ -18,10 +18,11 @@ from ..read import parse_parameters
 
 _extensions = set(['.isf', '.csv'])
 
+
 def copy_wavefiles(source, destination, timezoneadjust=1, test=False):
     """
     Copy waveforms while adding a timestamp of the original creation time.
-    
+
     Parameters
     ----------
     source : str
@@ -35,11 +36,12 @@ def copy_wavefiles(source, destination, timezoneadjust=1, test=False):
     timezoneadjust *= 10000
     source = os.path.abspath(source)
     destination = os.path.abspath(destination)
-    
+
     for f in os.listdir(source):
         sourcepath = os.path.join(source, f)
         if not os.path.isfile(sourcepath):
-            if test: print '{} not a file'.format(f)
+            if test:
+                print '{} not a file'.format(f)
             continue
         base, ext = os.path.splitext(f)
         if ext.lower() not in _extensions:
@@ -64,7 +66,7 @@ def copy_wavefiles(source, destination, timezoneadjust=1, test=False):
 def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
     """
     Returns a list of dicom filenames and their creation times.
-    
+
     Parameters
     -----------
     dirpath : str
@@ -91,7 +93,7 @@ def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
             files.remove(f)
         elif (t_[0] in study_exceptions) or (t_[-2] not in series_list):
             files.remove(f)
-            
+
     for f in files:
         fabs = os.path.join(dirpath, f)
         try:
@@ -112,10 +114,10 @@ def create_dicom_times(dirpath, series=[], skip_study=[], toff=0.):
         # add subseconds
         t_epoch += float("0." + subsec)
         dcmtimes.append((tau, f, t_epoch))
-        
+
     dcmtimes.sort(key=lambda x: x[-1])
     return dcmtimes
-        
+
 
 def create_osci_times(dirpath, acquisitiondate, timezonecorrection=0):
     """
@@ -136,7 +138,7 @@ def create_osci_times(dirpath, acquisitiondate, timezonecorrection=0):
             continue
         elif not os.path.splitext(f)[-1].lower() in _extensions:
             continue
-        elif not "CH1" in f:
+        elif "CH1" not in f:
             continue
         base, ext = os.path.splitext(f)
         traw = base.split('_')[-1]
@@ -148,7 +150,7 @@ def create_osci_times(dirpath, acquisitiondate, timezonecorrection=0):
             new_hour = new_hour % 24
             new_day = int(acquisitiondate[-2:]) + 1
             acquisitiondate = acquisitiondate[:6] + str(new_day)
-        tstring =  "{:>02}".format(new_hour) + tstring[2:]
+        tstring = "{:>02}".format(new_hour) + tstring[2:]
         t_ = time.strptime(acquisitiondate + tstring, "%Y%m%d%H%M%S")
         t_epoch = time.mktime(t_)
         # add subseconds
@@ -171,7 +173,7 @@ def _find_mean_difference(datalist, mean=3.0):
 def map_files(dcmlist, osclist, tr=3.0, verbose=False):
     """
     Map waveform files to dicom files by creation time.
-    
+
     Parameters
     ----------
     dcmlist : list
@@ -183,26 +185,26 @@ def map_files(dcmlist, osclist, tr=3.0, verbose=False):
     """
     if verbose:
         print "{} dicom files, {} waveforms".format(len(dcmlist), len(osclist))
-    
+
     d_dcm = _find_mean_difference(dcmlist)
     d_osc = _find_mean_difference(osclist)
     delta = d_dcm - d_osc
-    filemappings = []
-    filemapping = {}
+    filemappings = {}
+    fs = {}
     series = 0
-    
+
     for i in range(len(dcmlist)):
         dcm = dcmlist[i]
         # new series?
         if int(dcm[1].split('_')[-2]) != series:
-            if filemapping:
-                filemappings.append(filemapping)
-            filemapping = {}
+            if fs:
+                filemappings.update(fs)
+            fs = {}
             series = int(dcm[1].split('_')[-2])
             counter = 0
             if verbose:
                 print "New Series", series
-        
+
         t_epoch = dcm[-1]
         match_item = [
             dcm[0], dcm[1],
@@ -211,8 +213,8 @@ def map_files(dcmlist, osclist, tr=3.0, verbose=False):
         match_item[-1] += "{:.3f}".format(t_epoch % 1)[1:]
         try:
             match = filter(lambda x: (
-                (t_epoch - x[-1] - delta*counter) < 0. and 
-                (t_epoch - x[-1] - delta*counter) > -tr), 
+                (t_epoch - x[-1] - delta*counter) < 0. and
+                (t_epoch - x[-1] - delta*counter) > -tr),
                 osclist)[0]
         except IndexError:
             match_item.extend(["-", "-"])
@@ -222,10 +224,36 @@ def map_files(dcmlist, osclist, tr=3.0, verbose=False):
                 ])
             match_item[-1] += "{:.3f}".format(match[-1] % 1)[1:]
         finally:
-            filemapping[dcm[1]] = tuple(match_item)
-    
-    filemappings.append(filemapping)
+            fs[dcm[1]] = tuple(match_item)
+
+    filemappings.update(fs)
     return filemappings
+
+
+def get_filenames(tau, mapping, files='wave'):
+    """
+    Return filenames corresponding to taus.
+
+    Parameters:
+    -----------
+    tau : float
+        tau in milli seconds
+    mapping : dict
+        a filemapping
+    files : 'wave' | 'dicom'
+    """
+    if files not in set(['wave', 'dicom']):
+        raise ValueError("Can only return waveforms or dicom filenames")
+    # find relevant keys
+    keys = mapping.keys()
+    keys = filter(lambda x: float(mapping[x][0]) == tau, keys)
+    keys.sort(key=lambda x: int(x.split('_')[-1]))
+    # return filenames
+    if files == 'wave':
+        names = [mapping[k][3] for k in keys]
+    if files == 'dicom':
+        names = keys
+    return names
 
 
 def _create_latex_header(title=""):
@@ -234,9 +262,11 @@ def _create_latex_header(title=""):
     head += latex_head['header']
     return head
 
+
 def _create_latex_foot():
     return latex_head['foot']
-    
+
+
 latex_head = {'preamble': r"""\documentclass[8pt]{{article}}
 \usepackage{siunitx}
 \usepackage{longtable}

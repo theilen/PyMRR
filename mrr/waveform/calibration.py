@@ -101,12 +101,12 @@ class Calibrate(object):
     def _func_err(self, x):
         x = np.asarray(x)
         dm = self.result.sd_beta
-        return dm * (x - self._xm)
+        return np.abs(dm * (x - self._xm))
 
     def plot(self, title=None, annotation=True):
         self._has_run()
         # find values in original system
-        t_range = (self._x[-1] - self._x[0]) * 0.05
+        t_range = (self._x.max() - self._x.min()) * 0.05
         t_ = np.linspace(self._x.min() + self._xm - t_range,
                          self._x.max() + self._xm + t_range,
                          100)
