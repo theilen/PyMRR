@@ -80,7 +80,8 @@ class MRRArray(np.ndarray):
                    "maxGrad": None,
                    "gradstart": None,
                    "bvalue": None,
-                   "protocol": None
+                   "protocol": None,
+                   "echotime": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -90,7 +91,8 @@ class MRRArray(np.ndarray):
                          "Delta": "ms",
                          "maxGrad": "mT/m",
                          "gradstart": "ms",
-                         "bvalue": "s/mm^2"
+                         "bvalue": "s/mm^2",
+                         "echotime": "ms"
                          }
 
     def __new__(cls, input_array, dev=None, mask=None, **keypar):
@@ -136,6 +138,7 @@ class MRRArray(np.ndarray):
     def _get_attributes_string(self):
         "Create a nicely formatted string representation of the attributes"
         print_dict = self._attributes.copy()
+        del print_dict["protocol"]
         s = "MRRArray of shape {}".format(self.shape)
         orig_file = print_dict.pop("orig_file")
         if orig_file:
@@ -159,6 +162,10 @@ class MRRArray(np.ndarray):
     def print_attributes(self):
         "Print the MRRArray's attributes."
         print self._get_attributes_string()
+
+    def get_attributes(self):
+        "Returns the attributes as dictionary."
+        return self._attributes.copy()
 
     # return fields as view of numpy.ndarray
     def dataview(self, field):
