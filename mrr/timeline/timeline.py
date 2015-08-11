@@ -32,30 +32,34 @@ def read_times(files, mask=None, unwrap=True, verbose=False):
     return times
 
 
-def create_timeline(times, normalize=True, verbose=False):
+def create_timeline(times, normalize=True, average=True, verbose=False):
     '''
-    Create a timeline (3d-MRRArray with z-axis as time) of a list of 
-    image-sets as created with mrr.read_times().
-    
-    If normalize is set to True (default), every image-set is attempted to be 
+    Create a timeline (3d-MRRArray with z-axis as time) of a list of
+    image-sets (or single images) as created with mrr.read_times().
+
+    If normalize is set to True (default), every image-set is attempted to be
     normalized, i.e. the images are corrected to represent the same multiple
     of 2*pi.
     '''
-    #Normalize
+    # Normalize
     if normalize:
         for t, img_set in enumerate(times):
             if verbose:
                 print '\nNormalizing imageset %i...' % t
             normalize_image_set(img_set, threshold=0.7, verbose=verbose)
-    #Create Timeline
+    # Create Timeline
     shape = times[0].shape
     unwrapped = times[0].unwrapped
-    Timeline = empty((len(times),shape[1],shape[2]), 
-                         orig_file='Zeitreihe', 
+    Timeline = empty((len(times), shape[-2], shape[-1]),
+                         orig_file='Zeitreihe',
                          unwrapped=unwrapped
                          )
     for t, timepoint in enumerate(times):
-        Timeline[t] = timepoint.mean(axis=0)
+        if average:
+            item = timepoint.mean(axis=0)
+        else:
+            item = timepoint
+        Timeline[t] = item
     return Timeline
 
 
