@@ -113,7 +113,7 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
     return wave[col:, ::skip]
 
 
-def find_pulse_maximum(time, signal, radius=1.5e-3):
+def find_pulse_maximum(time, signal, radius=1.5e-3, threshold=0.01):
     """
     Returns the time point of the maximum singal amplitude.
 
@@ -124,9 +124,11 @@ def find_pulse_maximum(time, signal, radius=1.5e-3):
     zero = np.where(np.isclose(time, 0.0))[0]
     radius = int(radius/sample_rate)
     lower, higher = np.where(
-        signal[zero-radius:zero+radius] > 0.01
+        signal[zero-radius:zero+radius] > threshold
         )[0][[0, -1]]
     region = slice(zero-radius+lower, zero-radius+higher)
+    if region.start == region.stop:
+        raise ValueError("Did not find a peak!")
     a, b, c = np.polyfit(time[region], signal[region], deg=2)
     return -b/2/a
 
@@ -167,7 +169,10 @@ def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
         except IOError:
             continue
         # correct to maximum of pulse
-        t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius)
+        try:
+            t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius)
+        except ValueError:
+            continue
         wave[0] -= t0
         # smooth waveform
         if smoothing:
