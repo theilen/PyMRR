@@ -113,7 +113,8 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
     return wave[col:, ::skip]
 
 
-def find_pulse_maximum(time, signal, radius=1.5e-3, threshold=0.01):
+def find_pulse_maximum(time, signal, radius=1.5e-3, threshold=0.01,
+                       position=0.0):
     """
     Returns the time point of the maximum singal amplitude.
 
@@ -121,11 +122,14 @@ def find_pulse_maximum(time, signal, radius=1.5e-3, threshold=0.01):
     found in the region determined by radius around t=0.
     """
     sample_rate = np.diff(time[:2])[0]
-    zero = np.where(np.isclose(time, 0.0))[0]
+    zero = np.where(np.isclose(time, position))[0]
     radius = int(radius/sample_rate)
-    lower, higher = np.where(
-        signal[zero-radius:zero+radius] > threshold
-        )[0][[0, -1]]
+    try:
+        lower, higher = np.where(
+            signal[zero-radius:zero+radius] > threshold
+            )[0][[0, -1]]
+    except IndexError:
+        raise ValueError("Did not find a peak!")
     region = slice(zero-radius+lower, zero-radius+higher)
     if region.start == region.stop:
         raise ValueError("Did not find a peak!")

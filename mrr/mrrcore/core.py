@@ -457,7 +457,7 @@ def _mean_phasor_angle(array, mask=None, axis=None):
     # wrap to range [0, 2pi]
     angles[angles < 0.0] += 2.*math.pi
     angles[angles > 2.*math.pi] -= 2.*math.pi
-    return angles
+    return angles.data
 
 
 # miscellaneous
