@@ -146,7 +146,8 @@ def optimal_smoothing_length(times, length=2e-3):
 
 
 def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
-                      smoothing=True,
+                      smoothing=True, triggers=None,
+                      trigger_threshold=0.06,
                       skip=5, read_in='new', **kwargs):
     """
     Read in a set of waveforms and return the mean signal.
@@ -165,6 +166,12 @@ def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
         Sample interval of the returned timepoints
     smoothing : Bool
         Whether to smooth the waveforms before averaging them
+    triggers : callable
+        function accepting the filename of a waveform as parameter, returning
+        the approximate position of the ivnersion pulse as float. Should raise
+        ValueError if the waveform should be ignored.
+    trigger_threshold : float
+        trigger value to identify the inversion pulse.
     """
     waves = []
     for f in filenames:
@@ -173,8 +180,17 @@ def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
         except IOError:
             continue
         # correct to maximum of pulse
+        if triggers is not None:
+            try:
+                inv_time = triggers(f)
+            except ValueError:
+                continue
+        else:
+            inv_time = 0.0
         try:
-            t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius)
+            t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius,
+                                    position=inv_time,
+                                    threshold=trigger_threshold)
         except ValueError:
             continue
         wave[0] -= t0
