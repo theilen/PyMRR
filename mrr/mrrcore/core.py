@@ -453,6 +453,7 @@ def _mean_phasor_angle(array, mask=None, axis=None):
     y = np.ma.masked_where(mask == False, np.sin(array))
     angles = np.ma.arctan2(y.mean(axis=axis), x.mean(axis=axis))
     # map to [0, 2pi]
+    # TODO: ma.mod crashes when axis=None
     np.ma.mod(angles + 2.*math.pi, 2.*math.pi, out=angles)
     # wrap to range [0, 2pi]
     angles[angles < 0.0] += 2.*math.pi

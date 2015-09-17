@@ -42,9 +42,9 @@ class Calibrate(object):
 
     def set_values(self, x, y, dx=None, dy=None):
         assert len(y) == len(x)
-        self._x = np.asarray(x)
+        self._x = np.array(x, copy=True)
         self._xm = self._x.mean()
-        self._y = np.asarray(y)
+        self._y = np.array(y, copy=True)
         self._ym = self._y.mean()
         if dx is not None:
             assert len(dx) == len(x)
