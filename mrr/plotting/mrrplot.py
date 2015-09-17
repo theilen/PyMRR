@@ -7,11 +7,12 @@ last change: Sun Nov 09 2014
 @author: Sebastian Theilenberg
 """
 
-__version__ = '1.4'
+__version__ = '1.5'
 # $Source$
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 
 _default_clabel_tex = {
@@ -25,6 +26,56 @@ _default_clabel_wtex = {
     "phase": "phase [rad/2pi]",
     "dev": "std. dev. phase [rad/2pi]"
     }
+
+
+plotParams = {
+    'mask': {'alpha': 0.25,
+             'color': (1.0, 0.0, 0.0)
+             },
+    'images': {'interpolation': 'none',
+               'cmap': 'Greys_r'
+               }
+    }
+
+
+def changeParams(parameter, **kwargs):
+    for key, item in kwargs.items():
+        if not key in plotParams[parameter]:
+            raise KeyError("plotParams has no key {}".format(key))
+        plotParams[parameter][key] = item
+    if parameter == 'mask':
+        # update overlap colormap
+        _create_overlay_map()
+
+
+def _create_overlay_map():
+    #transparent colormap
+    global _over_red
+    r, g, b = plotParams['mask']['color']
+    cdict = {'red': ((0.0, r, r),
+                     (1.0, r, r)),
+             'green': ((0.0, g, g),
+                       (1.0, g, g)),
+             'blue': ((0.0, b, b),
+                      (1.0, b, b))
+            }
+    _over_red = LinearSegmentedColormap('MaskOver', cdict)
+    _over_red.set_bad(alpha=0)
+
+# run to register _over_red
+_create_overlay_map()
+
+
+def _create_mask_overlay(array):
+    '''
+    Creates an overlay based on array.mask
+    '''
+    if not len(array.shape) == 2:
+        raise ValueError('shape has to be 2-dimensional!')
+    result = np.empty(array.shape)
+    result[:,:] = np.nan
+    result[array.mask == False] = 1
+    return result
 
 
 def _cbar_label(field):
@@ -44,6 +95,7 @@ def display(img, field='phase',
             shrink_cbar=.9,
             grid=True,
             hold=False,
+            indicate_mask=False,
             ckwargs=None,
             clabel=None,
             **kwargs):
@@ -79,6 +131,8 @@ def display(img, field='phase',
         Adjusts the size of the colorbar
     grid : [True | False] (optional)
         Whether to draw a grid
+    indicate_mask : [True | False] (optional)
+        Whether to indicate the image's mask by a transparent overlay
     ckwargs : dictionary
         optional arguments to be passed to the colorbar() command.
     clabel : string (optional)
@@ -112,9 +166,10 @@ def display(img, field='phase',
         temp = img
 
     # plot
-    imshow_dict = {'cmap': plt.get_cmap('Greys_r'),  # colormap
-                   'interpolation': 'none'           # interpolation
-                   }
+#    imshow_dict = {'cmap': plt.get_cmap('Greys_r'),  # colormap
+#                   'interpolation': 'none'           # interpolation
+#                   }
+    imshow_dict = plotParams['images'].copy()
     imshow_dict.update(kwargs)
     plt.imshow(temp, **imshow_dict)
     plt.minorticks_on()
@@ -129,6 +184,12 @@ def display(img, field='phase',
         clabel = _cbar_label(field)
     if clabel:
         cbar.set_label(clabel)
+
+    # create mask overlay
+    if indicate_mask:
+        mask_overlay = _create_mask_overlay(img)
+        plt.imshow(mask_overlay, alpha=plotParams['mask']['alpha'],
+                   cmap=_over_red, interpolation='none')
 
     if grid:
         plt.grid()
@@ -171,8 +232,7 @@ def display_plain(img, field='phase',
     key-arguments are passed through, so if you want to modify e.g. the
     colormap, please see the documentation of pyplot.
     '''
-    imshow_dict = dict(interpolation='none',
-                       cmap='Greys_r')
+    imshow_dict = plotParams['images'].copy()
     imshow_dict.update(**kwargs)
 
     # crop 3d-arrays
@@ -231,7 +291,7 @@ def crop_image(array, crop_range=10):
 
 
 def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
-             autoadjust=False):
+             autoadjust=False, indicate_mask=False):
     """
     Creates a large overview plot displaying all images in array in a grid.
     Written to be used with the data returned from read_dicom_set.
@@ -253,7 +313,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
     autoadjust : bool, optional, default: False
         If set to True, all images span the same range of grey values.
     """
-    data = np.asarray(array)
+    data = np.asanyarray(array)
     # roll image axis to front
     np.rollaxis(data, imageaxis, 0)
 
@@ -263,47 +323,55 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
     except IndexError:
         field = None
 
-    if autoadjust:
-        # TODO does not work if averageaxis and autoadjust is present
-        #       values have to be determined AFTER averaging
-        if field is not None:
-            vmin = min([d_.dataview(field).min() for d_ in data])
-            vmax = max([d_.dataview(field).max() for d_ in data])
-            print vmin, vmax
-        else:
-            vmin = min([d_.min() for d_ in data])
-            vmax = max([d_.max() for d_ in data])
-    else:
-        vmin = vmax = None
-
     n = data.shape[0]
     ny = int(np.ceil(1.0*n/nx))
     fig, axarr = plt.subplots(ny, nx, figsize=(nx*4.0, ny*3.5))
+    images = np.empty_like(axarr)
 
+    vmin = 0
+    vmax = 0
     i = 0
-    for y in xrange(ny):
-        for x in xrange(nx):
-            ax = axarr[y, x]
-            # create average
+    for (y, x), ax in np.ndenumerate(axarr):
+        # prepare data
+        try:
+            img = data[i]
+        except IndexError:
+            ax.axis("off")
+            continue
+        if averageaxis is not None:
+            img = img.mean(axis=averageaxis)
+        else:
+            if img.ndim >= 3:
+                img = img[0]
+        # extract data as numpy array
+        if field is not None:
+            img_data = img[field].view(np.ndarray)
+        # save range of values
+        vmin = min(vmin, img_data.min())
+        vmax = max(vmin, img_data.max())
+        # plot
+        imshow_dict = plotParams['images'].copy()
+        images[y, x] = ax.imshow(img_data, **imshow_dict)
+        if indicate_mask:
+            mask_overlay = _create_mask_overlay(img)
+            ax.imshow(mask_overlay, alpha=plotParams['mask']['alpha'],
+                      cmap=_over_red, interpolation='None')
+        title_string = "Image {}".format(i)
+        try:
+            title_string += " (PTFT={})".format(data[i].PTFT)
+        except AttributeError:
+            pass
+        ax.set_title(title_string)
+
+        i += 1
+
+    # adjust color scale
+    if autoadjust:
+        for (y,x) in np.ndindex(images.shape):
             try:
-                img = data[i]
-            except IndexError:
-                ax.axis("off")
-                continue
-            if averageaxis is not None:
-                img = img.mean(axis=averageaxis)
-            else:
-                if img.ndim >= 3:
-                    img = img[0]
-            # extract data as numpy array
-            if field is not None:
-                img = img[field].view(np.ndarray)
-
-            ax.imshow(img, interpolation='None', cmap='Greys_r',
-                      vmin=vmin, vmax=vmax)
-            ax.set_title("Image {}".format(i))
-
-            i += 1
+                images[y, x].set_clim(vmin, vmax)
+            except AttributeError:
+                break
 
 
 def parse_pd(pd):
@@ -469,7 +537,7 @@ def plot(*args, **keyargs):
             if mask_pixels:
                 masked_indices, = unmasked_indices(y)
                 indices = np.asarray(
-                                [x for x in indices if x in masked_indices],
+                                [x_ for x_ in indices if x_ in masked_indices],
                                 dtype=np.int)
             #x-values for plotting (=indices)
             xvals = indices.copy()

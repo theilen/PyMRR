@@ -37,6 +37,7 @@ __version__ = '1.2.32'
 
 import numpy as np
 import os
+import math
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
@@ -46,7 +47,7 @@ __all__ = ["MRRArray", "empty", "empty_like",
            "copy_attributes",
            "zeros", "zeros_like",
            "save", "load",
-           "mrr_min", "mrr_max", "mrr_mean",
+           "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
            "cond_print"
            ]
 
@@ -79,7 +80,8 @@ class MRRArray(np.ndarray):
                    "maxGrad": None,
                    "gradstart": None,
                    "bvalue": None,
-                   "protocol": None
+                   "protocol": None,
+                   "echotime": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -89,7 +91,8 @@ class MRRArray(np.ndarray):
                          "Delta": "ms",
                          "maxGrad": "mT/m",
                          "gradstart": "ms",
-                         "bvalue": "s/mm^2"
+                         "bvalue": "s/mm^2",
+                         "echotime": "ms"
                          }
 
     def __new__(cls, input_array, dev=None, mask=None, **keypar):
@@ -114,8 +117,12 @@ class MRRArray(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
+        # new array from explicit constructor (atrributes will be set in
+        # MRRArray.__new__)
         if obj is None:
             return
+        # new array from view-casting or new-from-template
+        # (copy attributes)
         for attr in self._attributes:
             setattr(self, attr, getattr(obj, attr, self._attributes[attr]))
         # self.orig_file = getattr(obj, 'orig_file', None)
@@ -131,6 +138,7 @@ class MRRArray(np.ndarray):
     def _get_attributes_string(self):
         "Create a nicely formatted string representation of the attributes"
         print_dict = self._attributes.copy()
+        del print_dict["protocol"]
         s = "MRRArray of shape {}".format(self.shape)
         orig_file = print_dict.pop("orig_file")
         if orig_file:
@@ -154,6 +162,10 @@ class MRRArray(np.ndarray):
     def print_attributes(self):
         "Print the MRRArray's attributes."
         print self._get_attributes_string()
+
+    def get_attributes(self):
+        "Returns the attributes as dictionary."
+        return self._attributes.copy()
 
     # return fields as view of numpy.ndarray
     def dataview(self, field):
@@ -379,6 +391,74 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
     res['mask'] = np.invert(np.ma.getmask(av))
 
     return res
+
+
+def mean_phasor(array, axis=None):
+    """
+    Returns the angles of the mean phasor along axis.
+
+    Parameters:
+    -----------
+    array : MRRArray
+        contains the phase data in multiples of 2*pi. Data is supposed to be
+        mapped to the range of [0, 1].
+    axis : int | None
+        the mean phase and standard deviation are computed along this axis.
+    """
+    result = zeros(array.shape).mean(axis=axis)
+    copy_attributes(result, array)
+    result['phase'] = _mean_phasor_angle(array.phase*2.*math.pi,
+                                         mask=array.mask,
+                                         axis=axis)
+    result['dev'] = _std_phasor_angle(array.phase*2.*math.pi,
+                                      mask=array.mask,
+                                      mean_phase=result.phase,
+                                      axis=axis)
+    result['mask'] = np.any(array.mask, axis=axis)
+    # return array mapped to [0, 1]
+    return result/2./math.pi
+
+
+def _std_phasor_angle(array, mask=None, mean_phase=None, axis=None):
+    """
+    The standard deviation of the phases in array (in radians) along axis.
+    """
+    if not np.any(mask):
+        mask = np.empty(array.shape, dtype=np.bool)
+        mask[:] = True
+    if mean_phase is None:
+        mean_phase = _mean_phasor_angle(array, axis)
+    # TODO: check whether mean_phase matches array's shape
+    scalar = (np.cos(array)*np.cos(mean_phase) +
+              np.sin(array)*np.sin(mean_phase))
+    # mask invalid pixels
+    scalar = np.ma.masked_where(mask == False, scalar)
+    # handle floating point overflows
+    scalar[np.ma.greater(scalar, 1.0)] = 1.0
+    scalar[np.ma.less(scalar, -1.0)] = -1.0
+    # variance in multiples of 2pi
+    diff_angles = np.ma.arccos(scalar)
+    var = np.ma.mean(diff_angles**2., axis=axis)
+    return np.sqrt(var.data)
+
+
+def _mean_phasor_angle(array, mask=None, axis=None):
+    """
+    mean phase angle of phases in array (in radians) along axis.
+    """
+    if not np.any(mask):
+        mask = np.empty(array.shape, dtype=np.bool)
+        mask[:] = True
+    x = np.ma.masked_where(mask == False, np.cos(array))
+    y = np.ma.masked_where(mask == False, np.sin(array))
+    angles = np.ma.arctan2(y.mean(axis=axis), x.mean(axis=axis))
+    # map to [0, 2pi]
+    # TODO: ma.mod crashes when axis=None
+    np.ma.mod(angles + 2.*math.pi, 2.*math.pi, out=angles)
+    # wrap to range [0, 2pi]
+    angles[angles < 0.0] += 2.*math.pi
+    angles[angles > 2.*math.pi] -= 2.*math.pi
+    return angles.data
 
 
 # miscellaneous

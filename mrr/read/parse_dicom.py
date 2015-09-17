@@ -62,11 +62,14 @@ def parse_parameters(dcm):
             number of images per PTFT
         PTFT_decr : float (if present)
             decrement in PTFT
+        echotime : float
+            echo time in ms
     """
     dcm = _check_for_dicom_data(dcm)
 
     parameters = {}
     parameters["protocol"] = dcm.ProtocolName
+    parameters["echotime"] = dcm.EchoTime
 
     if not check_sequence(dcm):
         return parameters
