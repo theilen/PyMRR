@@ -66,6 +66,7 @@ def add(a, b, out=None): #tested
     try:
         b_ = b.phase
     except AttributeError:
+        # b is scalar
         b_ = np.asarray(b)
     else:
         #b is MRRArray
@@ -138,18 +139,24 @@ def multiply(a, b, out=None): #tested
     if out is None:
         out = a.copy()
 
+    pa = a.phase
+    da = a.dev
     try:
         pb = b.phase
     except AttributeError:
+        # b is scalar
         pb = np.asarray(b)
+        # standard deviation
+        np.multiply(out.dev, pb, out=out['dev'])
     else:
-        #b is MRRArray
-        pa = a.phase
-        da = a.dev
+        # b is MRRArray
         db = b.dev
+        # standard deviation
         np.sqrt(np.power(pb*da, 2.) + np.power(pa*db, 2.), out=out['dev'])
+        # new mask
         out['mask'] = _combine_mask(a, b)
     finally:
+        # multiplication of the phase
         ni = np.multiply(out.phase, pb, out=out['phase'])
 
     if np.any(ni) == NotImplemented:
@@ -185,19 +192,25 @@ def divide(a, b, out=None): #tested
     if out is None:
         out = a.copy()
 
+    pa = a.phase
+    da = a.dev
     try:
         pb = b.phase
     except AttributeError:
+        # b is scalar
         pb = np.asarray(b)
+        # standard deviation
+        np.true_divide(out.dev, pb, out=out['dev'])
     else:
-        #b is MRRArray
-        pa = a.phase
-        da = a.dev
+        # b is MRRArray
         db = b.dev
+        # standard deviation
         np.sqrt(np.power(da/pb, 2.) + np.power(pa*db, 2)/np.power(pb, 4.),
                 out=out['dev'])
+        # new mask
         out['mask'] = _combine_mask(a, b)
     finally:
+        # divide phase
         ni = np.true_divide(out.phase, pb, out=out['phase'])
 
     if np.any(ni) == NotImplemented:
