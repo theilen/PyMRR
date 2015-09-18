@@ -42,10 +42,10 @@ def add(a, b, out=None): #tested
     '''
     Add a and b elementwise with respect to MRRArrays.
 
-    'phase' is calculated as sum. 'dev' is computed with gaussian propagation 
-    of uncertainty, assuming only statistical uncertainties present and 
+    'phase' is calculated as sum. 'dev' is computed with gaussian propagation
+    of uncertainty, assuming only statistical uncertainties present and
     unequal input-arrays. 'mask' is set according to a logical AND.
-    
+
     Parameters
     ----------
     a : MRRArray
@@ -53,19 +53,20 @@ def add(a, b, out=None): #tested
     out : MRRArray (optional)
         if provided, the result will be placed in out. Out must have the same
         shape as the expected result.
-        
+
     Returns
     -------
     out : MRRAarray
     '''
     if isinstance(b, basestring):
         return NotImplemented
-    if out == None:
+    if out is None:
         out = a.copy()
-               
+
     try:
         b_ = b.phase
     except AttributeError:
+        # b is scalar
         b_ = np.asarray(b)
     else:
         #b is MRRArray
@@ -78,9 +79,9 @@ def add(a, b, out=None): #tested
         out['mask'] = _combine_mask(a, b)
     #set phase for both cases
     finally:
-        ni = np.add(b_, out.phase, out=out['phase'])
+        not_implemented = np.add(b_, out.phase, out=out['phase'])
 
-    if np.any(ni) == NotImplemented:
+    if np.any(not_implemented) == NotImplemented:
         return NotImplemented
     else:
         return out
@@ -89,11 +90,11 @@ def add(a, b, out=None): #tested
 def subtract(a, b, out=None): #tested
     '''
     Subtract b from a elementwise with respect to MRRArrays.
-    
-    'phase' is calculated as sum. 'dev' is computed with gaussian propagation 
-    of uncertainty, assuming only statistical uncertainties present and 
+
+    'phase' is calculated as sum. 'dev' is computed with gaussian propagation
+    of uncertainty, assuming only statistical uncertainties present and
     unequal input-arrays. 'mask' is set according to a logical AND.
-    
+
     Parameters
     ----------
     a : MRRArray
@@ -101,7 +102,7 @@ def subtract(a, b, out=None): #tested
     out : MRRArray (optional)
         if provided, the result will be placed in out. Out must have the same
         shape as the expected result.
-        
+
     Returns
     -------
     out : MRRAarray
@@ -116,11 +117,11 @@ sub = subtract
 def multiply(a, b, out=None): #tested
     '''
     Multiply a and b elementwise with respect to MRRArrays.
-    
-    'phase' is calculated as a*b. 'dev' is computed with gaussian propagation 
-    of uncertainty, assuming only statistical uncertainties present and 
+
+    'phase' is calculated as a*b. 'dev' is computed with gaussian propagation
+    of uncertainty, assuming only statistical uncertainties present and
     unequal input-arrays. 'mask' is set according to a logical AND.
-    
+
     Parameters
     ----------
     a : MRRArray
@@ -128,28 +129,34 @@ def multiply(a, b, out=None): #tested
     out : MRRArray (optional)
         if provided, the result will be placed in out. Out must have the same
         shape as the expected result.
-        
+
     Returns
     -------
     out : MRRAarray
     '''
     if isinstance(b, basestring):
         return NotImplemented
-    if out == None:
+    if out is None:
         out = a.copy()
 
+    pa = a.phase
+    da = a.dev
     try:
         pb = b.phase
     except AttributeError:
+        # b is scalar
         pb = np.asarray(b)
+        # standard deviation
+        np.multiply(out.dev, pb, out=out['dev'])
     else:
-        #b is MRRArray
-        pa = a.phase
-        da = a.dev
+        # b is MRRArray
         db = b.dev
+        # standard deviation
         np.sqrt(np.power(pb*da, 2.) + np.power(pa*db, 2.), out=out['dev'])
+        # new mask
         out['mask'] = _combine_mask(a, b)
     finally:
+        # multiplication of the phase
         ni = np.multiply(out.phase, pb, out=out['phase'])
 
     if np.any(ni) == NotImplemented:
@@ -163,11 +170,11 @@ mult = multiply
 def divide(a, b, out=None): #tested
     '''
     Divide a by b elementwise with respect to MRRArrays.
-    
-    'phase' is calculated as a/b. 'dev' is computed with gaussian propagation 
-    of uncertainty, assuming only statistical uncertainties present and 
+
+    'phase' is calculated as a/b. 'dev' is computed with gaussian propagation
+    of uncertainty, assuming only statistical uncertainties present and
     unequal input-arrays. 'mask' is set according to a logical AND.
-    
+
     Parameters
     ----------
     a : MRRArray
@@ -175,29 +182,35 @@ def divide(a, b, out=None): #tested
     out : MRRArray (optional)
         if provided, the result will be placed in out. Out must have the same
         shape as the expected result.
-        
+
     Returns
     -------
     out : MRRAarray
     '''
     if isinstance(b, basestring):
         return NotImplemented
-    if out == None:
+    if out is None:
         out = a.copy()
 
+    pa = a.phase
+    da = a.dev
     try:
         pb = b.phase
     except AttributeError:
+        # b is scalar
         pb = np.asarray(b)
+        # standard deviation
+        np.true_divide(out.dev, pb, out=out['dev'])
     else:
-        #b is MRRArray
-        pa = a.phase
-        da = a.dev
+        # b is MRRArray
         db = b.dev
+        # standard deviation
         np.sqrt(np.power(da/pb, 2.) + np.power(pa*db, 2)/np.power(pb, 4.),
                 out=out['dev'])
+        # new mask
         out['mask'] = _combine_mask(a, b)
     finally:
+        # divide phase
         ni = np.true_divide(out.phase, pb, out=out['phase'])
 
     if np.any(ni) == NotImplemented:
@@ -210,12 +223,12 @@ div = divide
 def power(a, b, out=None): #tested
     '''
     Compute a raised to the power of b elementwise with respect to MRRArrays.
-    b has to be a skalar value!    
-    
-    'phase' is calculated as a**b. 'dev' is computed with gaussian propagation 
-    of uncertainty, assuming only statistical uncertainties present and 
+    b has to be a skalar value!
+
+    'phase' is calculated as a**b. 'dev' is computed with gaussian propagation
+    of uncertainty, assuming only statistical uncertainties present and
     unequal input-arrays. 'mask' remains unaltered.
-    
+
     Parameters
     ----------
     a : MRRArray
@@ -223,7 +236,7 @@ def power(a, b, out=None): #tested
     out : MRRArray (optional)
         if provided, the result will be placed in out. Out must have the same
         shape as the expected result.
-        
+
     Returns
     -------
     out : MRRAarray
@@ -231,7 +244,7 @@ def power(a, b, out=None): #tested
     if hasattr(b, '__len__'):
         return NotImplemented
 
-    if out == None:
+    if out is None:
         out = a.copy()
 
     np.power(a.phase, b, out=out['phase'])

@@ -27,20 +27,22 @@ __version__ = '1.2.1b'
 # $Source$
 
 
-__all__ = ['get_waveform',      #read-in waveform
-           'calibrate_linear',
-           'scale_linear',      #scale a waveform by a linear function
-           'smooth',            #smooth wavefroms
-           'calculate_start'    #estimate start of falling motion
-           ]
-
 import numpy as np
 from scipy import optimize
 from scipy.stats import linregress
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import os.path
 
 from .tektronix import read_isf_files
+
+
+__all__ = ['get_waveform',      # read-in waveform
+           'calibrate_linear',
+           'scale_linear',      # scale a waveform by a linear function
+           'smooth',            # smooth wavefroms
+           'calculate_start'    # estimate start of falling motion
+           ]
 
 
 _read_sets = {'new': {'delimiter': ',',  # Spalten-Trennung
@@ -91,6 +93,7 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
         skip_header :  number of invalid rows in the beginning of the file.
     '''
     # TODO update docstring to incorporate binary files
+    filename = os.path.abspath(filename)
     binary_extensions = set([".isf"])
     if os.path.splitext(filename)[-1].lower() in binary_extensions:
         return read_isf_files(filename)[:, ::skip]
@@ -105,15 +108,118 @@ def get_waveform(filename, skip=5, read_in='new', **kwargs):
         col = D.pop('start_col')
     except KeyError:
         col = 0
-    
+
     wave = np.genfromtxt(filename, **D)
-    return wave[col:,::skip]
-    
+    return wave[col:, ::skip]
+
+
+def find_pulse_maximum(time, signal, radius=1.5e-3, threshold=0.01,
+                       position=0.0):
+    """
+    Returns the time point of the maximum singal amplitude.
+
+    The maximum amplitude is determined by quadratically fitting the peak
+    found in the region determined by radius around t=0.
+    """
+    sample_rate = np.diff(time[:2])[0]
+    zero = np.where(np.isclose(time, position))[0]
+    radius = int(radius/sample_rate)
+    try:
+        lower, higher = np.where(
+            signal[zero-radius:zero+radius] > threshold
+            )[0][[0, -1]]
+    except IndexError:
+        raise ValueError("Did not find a peak!")
+    region = slice(zero-radius+lower, zero-radius+higher)
+    if region.start == region.stop:
+        raise ValueError("Did not find a peak!")
+    a, b, c = np.polyfit(time[region], signal[region], deg=2)
+    return -b/2/a
+
+
+def optimal_smoothing_length(times, length=2e-3):
+    sample_interval = np.diff(times[:2])[0]
+    smoothing = int(length/sample_interval)
+    if smoothing % 2 == 0:
+        smoothing -= 1
+    return smoothing
+
+
+def get_mean_waveform(filenames, pulse_radius=1.5e-3, sample_int=5e-5,
+                      smoothing=True, triggers=None,
+                      trigger_threshold=0.06,
+                      skip=5, read_in='new', **kwargs):
+    """
+    Read in a set of waveforms and return the mean signal.
+
+    The waveforms are interpolated to a new set of uniformly spaced timepoints.
+    Before averaging the data, the times of the individual waveforms is
+    corrected to the maximum of the pulse the aquisition was triggered to.
+
+    Parameters:
+    -----------
+    filenames : list
+        List of filenames of the waveforms
+    pulse_radius : float
+        Radius around t=0 to search for the maximum of the pulse
+    sample_int : float
+        Sample interval of the returned timepoints
+    smoothing : Bool
+        Whether to smooth the waveforms before averaging them
+    triggers : callable
+        function accepting the filename of a waveform as parameter, returning
+        the approximate position of the ivnersion pulse as float. Should raise
+        ValueError if the waveform should be ignored.
+    trigger_threshold : float
+        trigger value to identify the inversion pulse.
+    """
+    waves = []
+    for f in filenames:
+        try:
+            wave = get_waveform(f, skip=skip, read_in=read_in, **kwargs)
+        except IOError:
+            continue
+        # correct to maximum of pulse
+        if triggers is not None:
+            try:
+                inv_time = triggers(f)
+            except ValueError:
+                continue
+        else:
+            inv_time = 0.0
+        try:
+            t0 = find_pulse_maximum(wave[0], wave[1], radius=pulse_radius,
+                                    position=inv_time,
+                                    threshold=trigger_threshold)
+        except ValueError:
+            continue
+        wave[0] -= t0
+        # smooth waveform
+        if smoothing:
+            smoothing = optimal_smoothing_length(wave[0])
+            for c in range(2, 5):
+                wave[c] = smooth(wave[c], window_len=smoothing)
+        # save time and optical channels
+        waves.append(wave[[0, 2, 3, 4]])
+    if len(waves) == 0:
+        raise IOError("No files found!")
+    # create new sample points
+    tmin = max([a[0, 0] for a in waves])
+    tmax = min([a[0, -1] for a in waves])
+    samples = int((tmax - tmin)/sample_int) + 1
+    t_sample = np.linspace(tmin, tmax, samples, endpoint=True)
+    # create uniformly sampled data
+    combined = np.asarray(
+        [interp1d(w[0], w[1:], axis=1)(t_sample) for w in waves]
+        )
+    mean = np.asarray([combined.mean(axis=0), combined.std(axis=0)])
+    return t_sample, mean
+
 
 def calibrate_linear(voltages, positions, full=False):
     """
     Calibrate waveforms by a set of (Voltage, position).
-    
+
     Calculates slope and intercept of a linear regression through the data
     using scipy.stats.linregress
     The returned parameters assume that 
@@ -233,12 +339,11 @@ def scale_linear(waveform, slope, intercept, inplace=False):
 #    if not inplace: return result
             
                 
-def smooth(x,window_len=11,window='hanning'):
+def smooth(x, window_len=11, window='hanning'):
     '''
     Smooth a waveform. Taken from http://wiki.scipy.org/Cookbook/SignalSmooth
     on 15-04-2014.
-    '''
-    
+    '''   
     if x.ndim != 1:
         raise ValueError, 'smooth only accepts 1-dimensional data!'
         
