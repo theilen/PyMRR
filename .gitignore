@@ -3,3 +3,5 @@ dist/
 MANIFEST
 # ignore compiled files
 *.pyc
+# ignore tektronix parser
+mrr/waveform/tektronix/
