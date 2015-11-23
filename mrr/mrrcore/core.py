@@ -312,6 +312,7 @@ def zeros_like(a):
 
 
 def save(filename, a):
+    # TODO: save properties
     np.save(filename, a)
 
 
