@@ -10,10 +10,13 @@ import numpy as np
 from numpy.polynomial.polynomial import polyfit
 from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
+import os
 
 
-__version__ = '0.1'
+__version__ = '0.2'
 # $Source$
+
+__all__ = ["calculate_frequency", "average_frequencies"]
 
 
 def _find_extrema(t, data, w=None, s=None, t0=None, t1=None,
@@ -64,7 +67,7 @@ def _match_extremes(extremes, match):
     return np.asarray(res)
 
 
-def calculate_frequencies(t, data, N=1000, s=None, weights=None,
+def calculate_frequency(t, data, N=1000, s=None, weights=None,
                           t0=None, t1=None, show_plot=False):
     """
     Estimate the frequency of data and its error by bootstrapping.
@@ -125,16 +128,143 @@ def calculate_frequencies(t, data, N=1000, s=None, weights=None,
     # find error of extrema
     dextr = bootextremes.std(axis=0)
     # find error of frequencies
-    freqs = _calc_frequencies(bootextremes.swapaxes(0, 1), weights=dextr)
+    freqs = _calc_frequencies(bootextremes.swapaxes(0, 1),
+                              weights=1./dextr**2.)
     dfreq = freqs.std()
 
     # recalculate frequency using errors of extrema
-    frequency = _calc_frequencies(extrema, weights=dextr)
+    frequency = _calc_frequencies(extrema, weights=1./dextr**2.)
 
     return np.array([frequency, dfreq])
 
 
-# testing
-# calc_freq = _calc_frequencies
-# match_ = _match_extremes
-# find_extr = _find_extrema
+def average_frequencies(t, data, error, N=1500, s=None, sweights=None,
+                        limits=None, show_plot=False, print_infos=False):
+    """
+    Estimate the main frequency of every set in data and its error by
+    bootstrapping.
+
+    Parameters
+    ----------
+    t : list
+        x-values for every data set
+    data : list
+        the phase data for every data set
+    N : int
+        number of bootsamples to draw to estimate the errors.
+    s : float or list
+        smoothing factor to be used for the spline representation of data.
+        If s is a float, it is used for every data set. Otherwise provide a
+        list of values with one value for every data set.
+    sweights : list
+        weights to be used for the spline representation of data.
+    limits : list
+        list of (t0,t1) pairs used to limit the x-range of the data.
+        If only one pair is provided, it is used for every data set. If None,
+        no limits are used.
+    show_plot : bool
+        If True, generates a plot showing the estimated extrema and the spline
+        representation.
+    print_infos : bool
+        If True, additional infos are printed during excecution.
+    """
+    noofsets = len(data)
+    # test data for consistency
+    if len(t) != noofsets:
+        raise ValueError("Expected x-values for every dataset")
+    if weights is not None and len(weights) != noofsets:
+        raise ValueError("Weights do not match data")
+    if len(error) != noofsets:
+        raise ValueError("Error does not match data")
+
+    # set defaults
+    if limits is None:
+        use_limits = False
+    else:
+        use_limits = True
+    if use_limits and len(limits) == 1:
+        limits = limits*noofsets
+
+    if s is not None and not hasattr(s, "__getitem__"):
+        s = [s]*noofsets
+
+    bootfrequencies = []
+    samplefrequencies = []
+    # find frequency of data sets and bootstrap
+    for nset in range(noofsets):
+        # get data
+        t_ = t[nset]
+        d_ = data[nset]
+        e_ = error[nset]
+        if weights is not None:
+            w_ = weights[nset]
+        else:
+            w_ = None
+        # set spline smoothing factor
+        if s is None:
+            # TODO: estimate s for weighted spline
+            s_ = t_.size
+        else:
+            s_ = s[nset]
+        # set limits
+        if use_limits:
+            t0, t1 = limits[nset]
+        else:
+            t0, t1 = t_[0], t_[-1]
+        # find mean frequency
+        extrema = _find_extrema(t_, d_, w=w_, s=s_, t0=t0, t1=t1,
+                                show_plot=show_plot)
+        n = extrema.size
+        bootsamples = np.empty((N, t_.size))
+        bootextremes = np.empty((N, n))
+        for i in range(t_.size):
+            bootsamples[:, i] = np.random.normal(d_[i], e_[i], N)
+        for i, sample in enumerate(bootsamples):
+            extr_ = _find_extrema(t_, sample, w=w_, s=s_, t0=t0, t1=t1,
+                                  show_plot=False)
+            if extr_.size != n:
+                # TODO: will not work for n(extr_) < n(extrema)
+                extr_ = _match_extremes(extr_, extrema)
+            bootextremes[i] = extr_
+        # handle nans
+        if np.any(np.isnan(bootextremes)):
+            indices = np.where(np.all(np.isfinite(bootextremes), axis=1))[0]
+            bootextremes = bootextremes[indices]
+            if print_infos:
+                print "found {} bad samples in run {}/{}".format(
+                    N - indices.size, nset+1, noofsets)
+
+        dextr = bootextremes.std(axis=0)
+        f_ = _calc_frequencies(extrema, weights=1./dextr**2.)
+        bootfreqs = _calc_frequencies(bootextremes.swapaxes(0, 1),
+                                      weights=1./dextr**2.)
+        # store for later use
+        bootfrequencies.append(bootfreqs)
+        samplefrequencies.append(f_)
+
+    # match number of bootsamples
+    nvalid = min([b_.size for b_ in bootfrequencies])
+    bootfrequencies = [b_[:nvalid] for b_ in bootfrequencies]
+    bootfrequencies = np.vstack(bootfrequencies)  # (noofsets, nvalid)
+    samplefrequencies = np.array(samplefrequencies)  # (noofsets,)
+    # error of frequency per set
+    dfreqs = np.std(bootfrequencies, axis=1)  # (noofsets,)
+    fw = 1./dfreqs**2.
+    # mean frequency per bootsample. shape: (nvalid,)
+    mean_set_freqs = np.average(bootfrequencies, weights=fw, axis=0)
+    # calculate mean frequency
+    f = np.average(samplefrequencies, weights=fw)
+    df = mean_set_freqs.std()
+
+    return f, df
+
+
+def testing(N=500, show_plot=True, print_infos=False):
+    files = [f for f in os.listdir('.') if f.endswith('.npy')]
+    rawdata = [np.load(f) for f in files]
+    t = [d_[0] for d_ in rawdata]
+    data = [d_[1] for d_ in rawdata]
+    errs = [d_[2] for d_ in rawdata]
+    weights = [1./e**2. for e in errs]
+    return average_frequencies(t, data, errs, N=500, weights=weights,
+                               show_plot=show_plot, print_infos=print_infos)
