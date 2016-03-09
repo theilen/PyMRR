@@ -161,7 +161,7 @@ def display(img, field='phase',
     # get phase-data
     try:
         temp = img[field].view(np.ndarray)
-    except ValueError:
+    except ValueError, IndexError:
         print 'Field \'%s\' not found!' % field
         temp = img
 
@@ -241,7 +241,7 @@ def display_plain(img, field='phase',
 
     try:
         temp = img[field].view(np.ndarray)
-    except ValueError:
+    except ValueError, IndexError:
         print 'Field \'%s\' not found!' % field
         temp = img
 
