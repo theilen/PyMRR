@@ -322,6 +322,7 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
         data[0][field]
     except IndexError:
         field = None
+        indicate_mask = False
 
     n = data.shape[0]
     ny = int(np.ceil(1.0*n/nx))
@@ -346,6 +347,8 @@ def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,
         # extract data as numpy array
         if field is not None:
             img_data = img[field].view(np.ndarray)
+        else:
+            img_data = img.view(np.ndarray)
         # save range of values
         vmin = min(vmin, img_data.min())
         vmax = max(vmin, img_data.max())
