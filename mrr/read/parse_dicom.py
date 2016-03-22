@@ -72,7 +72,7 @@ def parse_parameters(dcm):
 
     parameters = {}
     parameters["protocol"] = dcm.ProtocolName
-    parameters["echotime"] = dcm.EchoTime
+    parameters["echotime"] = float(dcm.EchoTime)
 
     parameters["matrix"] = get_matrix(dcm)
 

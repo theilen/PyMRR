@@ -28,9 +28,10 @@ __version__ = '1.31'
 # - nameparser: added ValueError if filename does not match pattern
 #       (len(items)<2)
 
-from .read import read_dicom, read_dicom_set, read_bitmap, read_mask
+from .read import read_dicom, read_dicom_set
+from .read import read_bitmap, read_mask, read_dicom_headers
 from .parse_dicom import parse_parameters, variable_ptft
 
 __all__ = ['read_dicom', 'read_dicom_set', 'read_bitmap', 'read_mask',
-           "parse_parameters", "variable_ptft"
+           "parse_parameters", "variable_ptft", "read_dicom_headers"
            ]

@@ -38,6 +38,7 @@ __version__ = '1.2.32'
 import numpy as np
 import os
 import math
+import pickle
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
@@ -46,7 +47,7 @@ from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
 __all__ = ["MRRArray", "empty", "empty_like",
            "copy_attributes",
            "zeros", "zeros_like",
-           "save", "load",
+           "save", "load", "loadmrr",
            "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
            "cond_print"
            ]
@@ -73,6 +74,7 @@ class MRRArray(np.ndarray):
     unwrapped : boolean, wether the data was unwrapped
     '''
     _attributes = {"orig_file": None,  # original filename
+                   "load_file": None,  # file data was loaded from
                    "unwrapped": False,  # flag whether the data was unwrapped
                    "PTFT": None,  # Trigger Delay, if present
                    "delta": None,
@@ -81,7 +83,8 @@ class MRRArray(np.ndarray):
                    "gradstart": None,
                    "bvalue": None,
                    "protocol": None,
-                   "echotime": None
+                   "echotime": None,
+                   "matrix" : None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -129,6 +132,20 @@ class MRRArray(np.ndarray):
 
     def __array_wrap__(self, obj, context=None):
         return obj.view(type(self))
+
+    # Handle pickle
+    def __reduce__(self):
+        # get parent's __reduce__ tuple
+        state = super(MRRArray, self).__reduce__()
+        # Create custom tuple
+        cstate = (state[2], self.__dict__.copy())
+        return (state[0], state[1], cstate)
+
+    def __setstate__(self, state):
+        # Call parent's __setstate__
+        super(MRRArray, self).__setstate__(state[0])
+        # update dict based on custom state
+        self.__dict__.update(state[1])
 
     def __str__(self):
         s = self._get_attributes_string()
@@ -312,7 +329,15 @@ def zeros_like(a):
 
 
 def save(filename, a):
-    np.save(filename, a)
+    with open(filename + '.mrr', 'wb') as f:
+        pickle.dump(a, f, -1)
+
+
+def loadmrr(filename):
+    with open(filename, 'rb') as f:
+        a = pickle.load(f)
+    a.load_file = filename
+    return a
 
 
 def load(filename):

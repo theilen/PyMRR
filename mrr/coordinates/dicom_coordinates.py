@@ -15,19 +15,19 @@ import numpy as np
 from warnings import warn
 import dicom
 
-from ..read.read import nameparser
+#from ..read.read import read_dicom_headers
 
 
-def read_dicom_headers(dcm):
-    """
-    Read headers of a set of dicom files.
-    """
-    files = nameparser(dcm)
-    headers = [dicom.read_file(f_, stop_before_pixels=True) for f_ in files]
-    if len(headers) == 1:
-        return headers[0]
-    else:
-        return headers
+#def read_dicom_headers(dcm):
+#    """
+#    Read headers of a set of dicom files.
+#    """
+#    files = nameparser(dcm)
+#    headers = [dicom.read_file(f_, stop_before_pixels=True) for f_ in files]
+#    if len(headers) == 1:
+#        return headers[0]
+#    else:
+#        return headers
 
 
 def _read_image_plane_module(dcm):

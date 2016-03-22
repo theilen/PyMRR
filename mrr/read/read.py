@@ -265,3 +265,15 @@ def read_bitmap(bitmap_file):
     Do NOT use to image MRI-data!
     '''
     return np.asarray(Image.open(bitmap_file))
+
+
+def read_dicom_headers(dcm):
+    """
+    Read headers of a set of dicom files.
+    """
+    files = nameparser(dcm)
+    headers = [dicom.read_file(f_, stop_before_pixels=True) for f_ in files]
+    if len(headers) == 1:
+        return headers[0]
+    else:
+        return headers
