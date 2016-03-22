@@ -12,6 +12,7 @@ __version__ = '0.82'
 import dicom
 
 from .siemens_csa import get_phoenix_protocol
+from ..coordinates.dicom_coordinates import get_matrix
 
 
 # tags to be read out of MrPhoenixProtocol and their corresponding names
@@ -64,12 +65,16 @@ def parse_parameters(dcm):
             decrement in PTFT
         echotime : float
             echo time in ms
+        matrix : np.array
+            affine matrix to map pixels to the DPCS
     """
     dcm = _check_for_dicom_data(dcm)
 
     parameters = {}
     parameters["protocol"] = dcm.ProtocolName
     parameters["echotime"] = dcm.EchoTime
+
+    parameters["matrix"] = get_matrix(dcm)
 
     if not check_sequence(dcm):
         return parameters
