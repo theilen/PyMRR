@@ -40,7 +40,7 @@ plotParams = {
 
 def changeParams(parameter, **kwargs):
     for key, item in kwargs.items():
-        if not key in plotParams[parameter]:
+        if key not in plotParams[parameter]:
             raise KeyError("plotParams has no key {}".format(key))
         plotParams[parameter][key] = item
     if parameter == 'mask':
@@ -49,7 +49,7 @@ def changeParams(parameter, **kwargs):
 
 
 def _create_overlay_map():
-    #transparent colormap
+    # transparent colormap
     global _over_red
     r, g, b = plotParams['mask']['color']
     cdict = {'red': ((0.0, r, r),
@@ -58,7 +58,7 @@ def _create_overlay_map():
                        (1.0, g, g)),
              'blue': ((0.0, b, b),
                       (1.0, b, b))
-            }
+             }
     _over_red = LinearSegmentedColormap('MaskOver', cdict)
     _over_red.set_bad(alpha=0)
 
@@ -73,7 +73,7 @@ def _create_mask_overlay(array):
     if not len(array.shape) == 2:
         raise ValueError('shape has to be 2-dimensional!')
     result = np.empty(array.shape)
-    result[:,:] = np.nan
+    result[:, :] = np.nan
     result[array.mask == False] = 1
     return result
 
@@ -88,6 +88,54 @@ def _cbar_label(field):
         string = ""
     finally:
         return string
+
+
+def find_vmax(array, mask=None, thresh=0.015, vizualize=False):
+    """
+    Find ideal vmin and vmax to display an array.
+
+    Parameters
+    ----------
+    array : array-like
+        The data to be analyzed. May be an np.ndarray or an MRR-Array.
+    mask : array-like
+        An optional mask to be used. If present, only pixels with mask == True
+        will be used to calculate vmin and vmax.
+        If array is an MRRArray, its mask will be used automatically. If a
+        masked is provided in this case, the MRRArray's masked will be ignored.
+    thresh : float
+        Fraction of pixels to cut off BOTH at high and at low pixel values.
+    vizualize : boolean
+        Whether to plot a histogram of the pixel values
+    """
+    # MRR array?
+    try:
+        data = array.phase
+    except AttributeError:
+        data = array
+    else:
+        if mask is None:
+            mask = array.mask
+    finally:
+        if np.any(mask):
+            data = data[mask == True]
+    # compute histogram
+    h_, be_ = np.histogram(data.flatten(), density=False, bins=100)
+    # compute normalized cumulative histogram
+    c_ = 1.*np.cumsum(h_)/h_.sum()
+    # get borders
+    # vmin is the left edge of the appropriate bin
+    # vmax is the right edge of the appropriate bin
+    vmin = be_[np.where(c_ > thresh)[0][0]]
+    vmax = be_[np.where(c_ < 1.-thresh)[0][-1] + 1]
+
+    if vizualize:
+        _ = plt.hist(data.flatten(), bins=100, normed=True)
+        plt.axvline(vmin, color='red')
+        plt.axvline(vmax, color='red')
+        plt.xlim(be_[0], be_[-1])
+
+    return vmin, vmax
 
 
 def display(img, field='phase',
@@ -161,7 +209,7 @@ def display(img, field='phase',
     # get phase-data
     try:
         temp = img[field].view(np.ndarray)
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         print 'Field \'%s\' not found!' % field
         temp = img
 
@@ -260,8 +308,8 @@ def display_plain(img, field='phase',
     plt.ylim(ylims[::-1])
 
     ratio = calc_ratio(ylims, xlims)
-
     fig.set_size_inches(figwidth, figwidth*ratio)
+
     ax = plt.Axes(fig, [0, 0, 1, 1])
     ax.set_axis_off()
     ax.set_xlim(xlims)
@@ -563,6 +611,7 @@ def plot(*args, **keyargs):
 
         if return_index:
             return indices[0], indices[-1]
+        
 
 
 _plot_labels = {'tex' : {'yl' : r'$\phi\,\left[rad/2\pi}\right]$',
