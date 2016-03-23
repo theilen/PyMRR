@@ -39,6 +39,7 @@ import numpy as np
 import os.path
 import math
 import pickle
+import h5py
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
@@ -84,7 +85,8 @@ class MRRArray(np.ndarray):
                    "bvalue": None,
                    "protocol": None,
                    "echotime": None,
-                   "matrix" : None
+                   "matrix": None,
+                   "description": ''
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -328,30 +330,68 @@ def zeros_like(a):
     return MRRArray(np.zeros(a.shape))
 
 
-def save(filename, a):
+def savepkl(filename, a):
     with open(filename + '.mrr', 'wb') as f:
         pickle.dump(a, f, -1)
 
 
-def _loadmrr(filename):
-    with open(filename, 'rb') as f:
-        a = pickle.load(f)
-    a.load_file = filename
-    return a
+def save(filename, array):
+    f = h5py.File(filename + '.hdf5', 'w', libver='earliest')
+    # save data
+    f.create_dataset("data", data=array.view(np.ndarray))
+    # save attributes
+    for attr in array.__dict__:
+        a_ = getattr(array, attr)
+        if a_ is not None:
+            f.attrs[attr] = a_
+    f.close()
+
+
+def _loadhdf5(filename):
+    'Load mrr data from hdf5 file.'
+    f = h5py.File(filename, 'r')
+    assert f["data"]
+    # create array from data
+    attrs = dict(f.attrs)
+    attrs.update({"load_file": filename})
+    array = MRRArray(f["data"], **attrs)
+
+    f.close()
+    return array
+
+
+#def _loadpkl(filename):
+#    'Load mrr data from pickled file.'
+#    with open(filename, 'rb') as f:
+#        a = pickle.load(f)
+#    a.load_file = filename
+#    return a
 
 
 def _loadnpy(filename):
+    'Load mrr data from numpy file.'
+    # for compatibility reasons only
     array = MRRArray(np.load(filename))
     array.orig_file = os.path.abspath(filename)
     return array
 
 
 def load(filename):
+    """
+    Load saved mrr data from file.
+
+    The type of loading is dependent on the file extension. Use:
+        .npy : pure numpy data
+        .mrr : pickled data
+        .hdf5 : hdf5 data
+    """
     _, ext = os.path.splitext(filename)
     if ext.lower() in set(['.npy']):
         return _loadnpy(filename)
-    elif ext.lower() in set(['.mrr']):
-        return _loadmrr(filename)
+#    elif ext.lower() in set(['.mrr']):
+#        return _loadpkl(filename)
+    elif ext.lower() in set(['.hdf5']):
+        return _loadhdf5(filename)
     else:
         print "WARNING: unknown file extension, assuming numpy format"
         return _loadnpy(filename)
