@@ -13,6 +13,7 @@ import dicom
 
 from .siemens_csa import get_phoenix_protocol
 from ..coordinates.dicom_coordinates import get_matrix
+from datetime import datetime
 
 
 # tags to be read out of MrPhoenixProtocol and their corresponding names
@@ -67,12 +68,18 @@ def parse_parameters(dcm):
             echo time in ms
         matrix : np.array
             affine matrix to map pixels to the DPCS
+        date : str
+        time : str
     """
     dcm = _check_for_dicom_data(dcm)
 
     parameters = {}
     parameters["protocol"] = dcm.ProtocolName
     parameters["echotime"] = float(dcm.EchoTime)
+
+    dt = _create_datetime_object(dcm)
+    parameters["date"] = dt.strftime("%Y-%m-%d")
+    parameters["time"] = dt.strftime("%H:%M:%S.%f")
 
     parameters["matrix"] = get_matrix(dcm)
 
@@ -103,6 +110,12 @@ def parse_parameters(dcm):
                                         parameters["PTFT_decr"])
 
     return parameters
+
+
+def _create_datetime_object(dcm):
+    date = dcm.AcquisitionDate
+    time = dcm.AcquisitionTime
+    return datetime.strptime(date + time, "%Y%m%d%H%M%S.%f")
 
 
 def _check_for_dicom_data(dcm, header_only=True):

@@ -240,6 +240,7 @@ def _collect_data(images):
     for i, item in enumerate(images):
         data[i] = item
     copy_attributes(data, images[0])
+    data.orig_file = "_".join(images[0].orig_file.split('_')[:-1])
     return data
 
 

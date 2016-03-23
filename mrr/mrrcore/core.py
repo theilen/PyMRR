@@ -86,7 +86,9 @@ class MRRArray(np.ndarray):
                    "protocol": None,
                    "echotime": None,
                    "matrix": None,
-                   "description": ''
+                   "description": '',
+                   "date": None,
+                   "time": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -100,7 +102,7 @@ class MRRArray(np.ndarray):
                          "echotime": "ms"
                          }
     _exclude_in_print = ("orig_file", "load_file", "unwrapped",
-                         "matrix", "description")
+                         "matrix", "description", "date", "time")
 
     def __new__(cls, input_array, dev=None, mask=None, **keypar):
         # cast to custom class
@@ -180,6 +182,11 @@ class MRRArray(np.ndarray):
         if not unwr:
             s += "not "
         s += "unwrapped)\n"
+        if self.date:
+            s += "Acquired on {}".format(self.date)
+            if self.time:
+                s += " {}".format(self.time)
+            s += "\n"
         load_file = getattr(self, "load_file", None)
         if load_file:
             s += "Loaded from file {}\n".format(load_file)
