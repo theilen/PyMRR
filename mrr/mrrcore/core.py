@@ -36,7 +36,7 @@ __version__ = '1.2.32'
 # $Source$
 
 import numpy as np
-import os
+import os.path
 import math
 import pickle
 
@@ -347,10 +347,10 @@ def _loadnpy(filename):
 
 
 def load(filename):
-    ext = os.path.splitext(filename)[-1].lower()
-    if ext in set(['.npy', ]):
+    _, ext = os.path.splitext(filename)
+    if ext.lower() in set(['.npy']):
         return _loadnpy(filename)
-    elif ext in set(['.mrr']):
+    elif ext.lower() in set(['.mrr']):
         return _loadmrr(filename)
     else:
         print "WARNING: unknown file extension, assuming numpy format"
