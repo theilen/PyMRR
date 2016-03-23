@@ -47,7 +47,7 @@ from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
 __all__ = ["MRRArray", "empty", "empty_like",
            "copy_attributes",
            "zeros", "zeros_like",
-           "save", "load", "loadmrr",
+           "save", "load",
            "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
            "cond_print"
            ]
@@ -333,17 +333,28 @@ def save(filename, a):
         pickle.dump(a, f, -1)
 
 
-def loadmrr(filename):
+def _loadmrr(filename):
     with open(filename, 'rb') as f:
         a = pickle.load(f)
     a.load_file = filename
     return a
 
 
-def load(filename):
+def _loadnpy(filename):
     array = MRRArray(np.load(filename))
     array.orig_file = os.path.abspath(filename)
     return array
+
+
+def load(filename):
+    ext = os.path.splitext(filename)[-1].lower()
+    if ext in set(['.npy', ]):
+        return _loadnpy(filename)
+    elif ext in set(['.mrr']):
+        return _loadmrr(filename)
+    else:
+        print "WARNING: unknown file extension, assuming numpy format"
+        return _loadnpy(filename)
 
 
 # statistics
