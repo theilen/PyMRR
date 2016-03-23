@@ -43,6 +43,7 @@ import h5py
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
+from ..coordinates import get_position
 
 
 __all__ = ["MRRArray", "empty", "empty_like",
@@ -215,6 +216,14 @@ class MRRArray(np.ndarray):
     def get_attributes(self):
         "Returns the attributes as dictionary."
         return self._attributes.copy()
+
+    def position(self, r, c, s=0):
+        "Return the position of pixel (r, c, s) in mm (x, y, z) in the DPCS."
+        if not np.any(self.matrix):
+            raise AttributeError(
+                "No matrix present, cannot map pixels to space."
+                )
+        return get_position(self.matrix, r, c, s)
 
     # return fields as view of numpy.ndarray
     def dataview(self, field):
