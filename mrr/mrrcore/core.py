@@ -99,6 +99,8 @@ class MRRArray(np.ndarray):
                          "bvalue": "s/mm^2",
                          "echotime": "ms"
                          }
+    _exclude_in_print = ("orig_file", "load_file", "unwrapped",
+                         "matrix", "description")
 
     def __new__(cls, input_array, dev=None, mask=None, **keypar):
         # cast to custom class
@@ -149,38 +151,59 @@ class MRRArray(np.ndarray):
         # update dict based on custom state
         self.__dict__.update(state[1])
 
-    def __str__(self):
-        s = self._get_attributes_string()
-        s += super(MRRArray, self).__str__()
-        return s
+#    def __str__(self):
+#        s = self._get_attributes_string()
+#        s += super(MRRArray, self).__str__()
+#        return s
+
+    @property
+    def info(self):
+        "Returns readable info string"
+        print self._get_attributes_string()
+
+    def _get_print_keys(self):
+        keys = self._attributes.keys()
+        for k in self._exclude_in_print:
+            keys.remove(k)
+        return keys
 
     def _get_attributes_string(self):
         "Create a nicely formatted string representation of the attributes"
         print_dict = self._attributes.copy()
         del print_dict["protocol"]
         s = "MRRArray of shape {}".format(self.shape)
-        orig_file = print_dict.pop("orig_file")
+        orig_file = getattr(self, 'orig_file', None)
         if orig_file:
-            s += ", read from file {}".format(self.orig_file)
+            s += ", originally read from file {}".format(self.orig_file)
         s += " ("
-        unwr = print_dict.pop("unwrapped")
+        unwr = getattr(self, "unwrapped", None)
         if not unwr:
             s += "not "
         s += "unwrapped)\n"
-        maxlen = max([len(k) for k in print_dict.keys()])
-        for attr in print_dict.keys():
+        load_file = getattr(self, "load_file", None)
+        if load_file:
+            s += "Loaded from file {}\n".format(load_file)
+        desc = getattr(self, "description", None)
+        if desc:
+            s += "{}\n".format(desc)
+        keys_ = self._get_print_keys()
+        maxlen = max([len(k) for k in keys_])
+        for attr in keys_:
             a_ = getattr(self, attr, None)
             unit = self._attributes_units.get(attr, "")
             if a_ is None:
                 sattr = ""
             else:
-                sattr = "{:>10.3f} {}".format(a_, unit)
+                try:
+                    sattr = "{:>10.3f} {}".format(a_, unit)
+                except ValueError:
+                    sattr = " {}".format(a_)
             s += "\t{0:<{2}}:{1}\n".format(attr, sattr, maxlen)
         return s
 
-    def print_attributes(self):
-        "Print the MRRArray's attributes."
-        print self._get_attributes_string()
+#    def print_attributes(self):
+#        "Print the MRRArray's attributes."
+#        print self._get_attributes_string()
 
     def get_attributes(self):
         "Returns the attributes as dictionary."
