@@ -20,6 +20,11 @@ from datetime import datetime
 _PHOENIX_TAGS = {
     # bvalue
     "sDiffusion.alBValue[0]": ["bvalue", lambda i: float(i)],
+    # number of images (repetitions = images-1)
+    "lRepetitions": ["TotalImages", lambda i: int(i)+1],
+}
+
+_sWi_tags_vb10r = {
     # length of the gradients (one ramp + plateau)
     "sWiPMemBlock.adFree[7]": ["delta", lambda i: float(i)],
     # time between two gradients (end to start)
@@ -34,9 +39,25 @@ _PHOENIX_TAGS = {
     "sWiPMemBlock.alFree[20]": ["PTFT_decr", lambda i: float(i)*1e-3],
     # PTFT averages
     "sWiPMemBlock.alFree[21]": ["PTFT_aver", lambda i: int(i)],
-    # number of images (repetitions = images-1)
-    "lRepetitions": ["TotalImages", lambda i: int(i)+1],
+    # number of prepscans (NOT safe!)
+    "sWiPMemBlock.alFree[2]": ["prepscans", lambda i:int(i)]
 }
+
+_sWi_tags_vb10a = {
+    # length of the gradients (one ramp + plateau)
+    "sWiPMemBlock.adFree[7]": ["delta", lambda i: float(i)],
+    # time between two gradients (end to start)
+    "sWiPMemBlock.adFree[8]": ["Delta", lambda i: float(i)],
+    # number of prepscans (NOT safe!)
+    "sWiPMemBlock.alFree[2]": ["prepscans", lambda i:int(i)]
+}
+
+
+def _get_phoenix_tags(protocol):
+    d = _PHOENIX_TAGS.copy()
+    update = eval("_sWi_tags_" + protocol.split('_')[-1])
+    d.update(update)
+    return d
 
 
 def parse_parameters(dcm):
@@ -70,6 +91,8 @@ def parse_parameters(dcm):
             affine matrix to map pixels to the DPCS
         date : str
         time : str
+        prepscans : int
+            number of prepscans
     """
     dcm = _check_for_dicom_data(dcm)
 
@@ -87,8 +110,9 @@ def parse_parameters(dcm):
         return parameters
 
     mrp = get_phoenix_protocol(dcm)
+    tags = _get_phoenix_tags(dcm.ProtocolName)
 
-    for tag, specifier in _PHOENIX_TAGS.items():
+    for tag, specifier in tags.items():
         name, func = specifier
         try:
             parameters[name] = func(mrp[tag])
@@ -133,9 +157,10 @@ def variable_ptft(dcm):
         return False
 
 
-def check_sequence(dcm):
-    dcm = _check_for_dicom_data(dcm)
-    return dcm.ProtocolName in ["nin_ep2d_diff_vb10r"]
+def check_sequence(dcm, header_only=True):
+    if not isinstance(dcm, dicom.dataset.Dataset):
+        dcm = dicom.read_file(dcm, stop_before_pixels=header_only)
+    return dcm.ProtocolName in ["nin_ep2d_diff_vb10r", "nin_ep2d_diff_vb10a"]
 
 
 def _calc_ptft(index, fill, aver, decr):

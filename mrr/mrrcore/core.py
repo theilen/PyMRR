@@ -89,7 +89,8 @@ class MRRArray(np.ndarray):
                    "matrix": None,
                    "description": '',
                    "date": None,
-                   "time": None
+                   "time": None,
+                   "prepscans": None,
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
