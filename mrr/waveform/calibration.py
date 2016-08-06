@@ -16,7 +16,12 @@ import pickle
 
 def cal_from_file(filename):
     with open(filename, 'rb') as f:
-        return pickle.load(f)
+        Cal = pickle.load(f)
+        if not isinstance(Cal, Calibrate):
+            raise AttributeError(
+                "File {} did not return a Calibrate object!".format(f)
+            )
+        return Cal
 
 
 class Calibrate(object):
@@ -32,7 +37,7 @@ class Calibrate(object):
         self._has_run()
         y = self._func_values(x)
         if std:
-            err = self._func_err(x)
+            err = self._func_std(x)
             return y, err
         return y
 
@@ -43,25 +48,30 @@ class Calibrate(object):
     def set_values(self, x, y, dx=None, dy=None):
         assert len(y) == len(x)
         self._x = np.array(x, copy=True)
-        self._xm = self._x.mean()
         self._y = np.array(y, copy=True)
-        self._ym = self._y.mean()
         if dx is not None:
             assert len(dx) == len(x)
             self._dx = np.asarray(dx)
         if dy is not None:
-            assert len(dy) == len(x)
+            assert len(dy) == len(y)
             self._dy = np.asarray(dy)
-        self._correct_to_cg()
 
     @property
     def slope(self):
+        "Return the slope of the calibration"
         self._has_run()
-        return np.hstack((self.result.beta, self.result.sd_beta))
+        return np.hstack((self.result.beta[0],
+                          # correct std error to std dev. by residual variance
+                          self.result.sd_beta[0]/np.sqrt(self.result.res_var))
+                         )
 
-    def _correct_to_cg(self):
-        self._x -= self._xm
-        self._y -= self._ym
+    @property
+    def intercept(self):
+        "Return the intercept of the calibration"
+        return np.hstack((self.result.beta[1],
+                          # correct std error to std dev. by residual variance
+                          self.result.sd_beta[1]/np.sqrt(self.result.res_var))
+                         )
 
     def save(self, filename):
         self._has_run()
@@ -80,37 +90,40 @@ class Calibrate(object):
         initial = self._initial_guess()
         solver = odr.ODR(Data, Model, initial)
         self.result = solver.run()
-        return self.result.beta, self.result.sd_beta
+        # return self.result.beta, self.result.sd_beta
 
     def _linear(self, P, x):
         "Linear function of regression."
-        return P[0]*x  # + P[1]
+        return P[0]*x + P[1]
 
     def _initial_guess(self):
         dy = self._y.max() - self._y.min()
         dx = self._x.max() - self._x.min()
-        return (dy/dx,)  # self._y[0] - self._x[0]*dy/dx)
+        m = dy/dx
+        return (m, self._y[0] - self._x[0]*m)
 
     def _func_values(self, x):
         "Returns the calibrated values f(x) as np.array."
-        x = np.array(x) - self._xm
-        # m, n = self.result.beta
-        # return x*m + n
-        return self._linear(self.result.beta, x) + self._ym
+        x = np.array(x)
+        return self._linear(self.result.beta, x)
+
+    def _func_std(self, x):
+        "Return the standard deviation on the calbrated values y(x)"
+        g = np.array([x, 1])
+        return np.sqrt(np.dot(g, np.dot(self.result.cov_beta, g.T)))
 
     def _func_err(self, x):
-        x = np.asarray(x)
-        dm = self.result.sd_beta
-        return np.abs(dm * (x - self._xm))
+        "Return the standard error on the calibrated values y(x)"
+        raise NotImplementedError("How to do it? How??? And why?")
 
-    def plot(self, title=None, annotation=True):
+    def plot(self, title=None, annotation=False):
         self._has_run()
         # find values in original system
         t_range = (self._x.max() - self._x.min()) * 0.05
-        t_ = np.linspace(self._x.min() + self._xm - t_range,
-                         self._x.max() + self._xm + t_range,
+        t_ = np.linspace(self._x.min() - t_range,
+                         self._x.max() + t_range,
                          100)
-        err = self._func_err(t_)
+        std = self._func_std(t_)
         y = self._func_values(t_)
 
         plt.figure()
@@ -118,11 +131,11 @@ class Calibrate(object):
             plt.title(title)
         plt.minorticks_on()
         # plot margin
-        plt.fill_between(t_, y - err, y + err, alpha=0.2, color='teal')
+        plt.fill_between(t_, y - std, y + std, alpha=0.2, color='teal')
         # plot function
         plt.plot(t_, y, color='teal')
         # plot measurement values
-        plt.errorbar(self._x + self._xm, self._y + self._ym,
+        plt.errorbar(self._x, self._y,
                      yerr=self._dy, xerr=self._dx,
                      ls='none', color='blue')
         # adjust xlim
@@ -147,8 +160,11 @@ class Calibrate(object):
                                  xycoords="axes fraction")
 
     def _create_annotation(self):
-        m = self.result.beta[0]
-        dm = self.result.sd_beta[0]
+        warn("Annotation not implemented!")
+        return ""
+        # TODO: create with intercept
+        m, dm = self.slope
+        c, dc = self.intercept
         # find precisions of last relevant decimal
         precision = int(math.floor(-math.log10(dm)) + 1)
         # calculate the decimals of the errors at these positions
