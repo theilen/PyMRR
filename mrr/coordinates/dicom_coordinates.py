@@ -106,6 +106,32 @@ def get_matrix(dcm):
     return M
 
 
+def _invert_affine_matrix(M):
+    """
+    Inverts the affine matrix to map (x,y,z) to (r,c,s)
+
+    If the provided Matrix is of a 2D-Imageset (e.g. not regular), the matrix
+    is truncated prior to calculation and filled to be 4x4 again afterwards.
+    """
+    if np.all(M[:, 2] == 0):
+        # 2D image data
+        M_ = M[[0, 1, 3]][:, [0, 1, 3]]
+    else:
+        M_ = M
+    Inv = np.linalg.inv(M_)
+    # make sure to have 4x4 matrix
+    if Inv.size == 9:
+        Inv = np.insert(Inv, 2, 0, axis=1)
+        Inv = np.insert(Inv, 3, [0, 0, 0, 1], axis=0)
+    return Inv
+
+
+def get_pixel(M, x, y, z):
+    Minv = _invert_affine_matrix(M)
+    pixel = np.dot(Minv, np.array([x, y, z, 1]).T)
+    return pixel[:3]
+
+
 def get_position(M, r, c, s=0):
     """
     Returns the voxel coordinates (r, c, s) in mm (x, y, z) in the Dicom
