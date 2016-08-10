@@ -5,7 +5,20 @@ last change: Wed Oct 22 16:17 2014
 @author: Sebastian Theilenberg
 """
 
+import dicom
+import numpy as np
+import os
+import re
+from PIL import Image
+from warnings import warn
+
+from ..mrrcore import MRRArray, cond_print, empty, copy_attributes
+from ..unwrapping import unwrap_array
+from .parse_dicom import parse_parameters, check_sequence
+from ..coordinates.dicom_coordinates import get_matrix
+
 __version__ = '1.32'
+
 # $Source$
 
 
@@ -42,17 +55,6 @@ __version__ = '1.32'
 # - nameparser: added ValueError if filename does not match pattern
 #   (len(items)<2)
 
-import dicom
-import numpy as np
-import os
-import re
-from PIL import Image
-
-
-from ..mrrcore import MRRArray, cond_print, empty, copy_attributes
-from ..unwrapping import unwrap_array, valid_unwrapper
-from .parse_dicom import parse_parameters, check_sequence
-
 
 __metaclass__ = type
 
@@ -78,7 +80,7 @@ def nameparser(filename):
     Parses a given directory and returns all files matching filename_<i>.
     Returns a sorted list of filenames.
 
-    Getestet mit:
+    Tested with:
     '188_13-12-10_82'
     '188_13-12-10_82_1'
     '13-12-10_82_1'
@@ -110,6 +112,36 @@ def nameparser(filename):
     return [os.path.join(directory, f) for f in files]
 
 
+def _get_pixel_data(dc):
+    """Return the processed pixel data of a dicom object"""
+    return np.asarray(dc.pixel_array, dtype=np.float32)/4096.
+
+
+def _unwrap_pixel_data(data, mask, algorithm, filename=None, **kwargs):
+    pixel_data, add = unwrap_array(data, mask, additional=True,
+                                   algorithm=algorithm, **kwargs)
+    if algorithm in ['py_gold', ]:
+        if add[-1] != 1:
+            warn(("Found disconnected pieces while unwrapping"
+                  "{}").format(filename))
+    return pixel_data, add
+
+
+def _mrr_from_dicom(dc, unwrap, mask, unwrapper, **ukwargs):
+    pixel_data = _get_pixel_data(dc)
+    if unwrap:
+        pixel_data, add = _unwrap_pixel_data(pixel_data, mask, unwrapper,
+                                             *ukwargs)
+    else:
+        add = None
+
+    seq_data = parse_parameters(dc)
+    seq_data.update({'unwrapped': unwrap})
+    data = MRRArray(pixel_data, mask=mask, **seq_data)
+
+    return data, add
+
+
 def read_dicom(dicom_file, unwrap=False, mask=None, verbose=True,
                unwrap_data=False, unwrapper='py_gold', **ukwargs):
     '''
@@ -117,37 +149,12 @@ def read_dicom(dicom_file, unwrap=False, mask=None, verbose=True,
     If unwrap is set (default: False) the data is automatically unwrapped. If
     so, an array <mask> containing the mask has to be provided as well!
     '''
-    if unwrap is True and not valid_unwrapper(unwrapper):
-        raise AttributeError('No algorithm named {}'.format(unwrapper))
-
     dc = dicom.read_file(dicom_file)
     cond_print('Read in file %s' % dicom_file, verbose)
-    pixel_data = np.asarray(dc.pixel_array, dtype=np.float32)/4096.
-    seq_data = parse_parameters(dc)
+    data, add = _mrr_from_dicom(dc, unwrap, mask, unwrapper, **ukwargs)
 
-    # Unwrap if specified
-    if unwrap:
-        if not np.any(mask):
-            raise UnwrapperError('Could not unwrap file %s. \
-                                  No mask provided!' % dicom_file)
-        # try to unwrap
-        try:
-            pixel_data, add = unwrap_array(pixel_data, mask, additional=True,
-                                           algorithm=unwrapper, **ukwargs)
-        except:
-            raise
-            # raise UnwrapperError('Could not unwrap file %s' % dicom_file)
-        if unwrapper in ['py_gold', 'c_gold']:
-            if add[-1] != 1:
-                print ("WARNING: found disconnected "
-                       "pieces while unwrapping {}").format(dicom_file)
+    data.orig_file = os.path.basename(dicom_file)
 
-    # create MRRArray
-    seq_data.update({"orig_file": os.path.basename(dicom_file),
-                     "unwrapped": unwrap})
-    data = MRRArray(pixel_data, mask=mask, **seq_data)
-
-    # return data
     if unwrap_data:
         return data, add
     else:
@@ -181,25 +188,22 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
         MRRArrays otherwise, sorted by PTFT. For every MRRArray, the first
         axis corresponds to the image number.
     '''
-    if unwrap is True and not valid_unwrapper(unwrapper):
-        raise AttributeError('No algorithm named {}'.format(unwrapper))
-
-    # find files
     files = nameparser(dicom_file)
     if len(files) == 0:
         raise IOError("Did not find any dicom files! Wrong path?")
     nofimages = len(files)
+    basename = "_".join(dicom_file.split('_')[:-1])
     cond_print('Found {} file(s) in total'.format(nofimages), verbose)
 
     # Read files
+    dicom_data = [dicom.read_file(f) for f in files]
     # check for nin_ep2d_diff first
-    is_epi = check_sequence(files[0])
+    is_epi = check_sequence(dicom_data[0])
     result = []
     images = []
     index = 0
     while index < nofimages:
-        dc = read_dicom(files[index], mask=mask, verbose=verbose,
-                        unwrap=unwrap, unwrapper=unwrapper)
+        dc, _ = _mrr_from_dicom(dicom_data[index], unwrap, mask, unwrapper)
 
         if is_epi:
             # sort and divide epi files per PTFT
@@ -208,13 +212,12 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
             except IndexError:
                 ptft = dc.PTFT
 
-            if dc.PTFT == ptft:
-                # Collect data with same PTFT
+            if dc.PTFT == ptft:  # Collect data with same PTFT
                 images.append(dc)
             else:
                 cond_print("new PTFT: {}".format(dc.PTFT), verbose)
                 # Write all data in images into one MRRArray
-                result.append(_collect_data(images))
+                result.append(_collect_data(images, basename))
                 # restart images with new PTFT
                 images = []
                 images.append(dc)
@@ -226,6 +229,12 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
     if images:
         result.append(_collect_data(images))
 
+    # update matrix to 3D
+    if nofimages > 1:
+        M = get_matrix(dicom_data)
+        for d in result:
+            d.matrix = M.copy()
+
     if len(result) == 1:
         result = result[0]
     elif is_epi:
@@ -234,13 +243,13 @@ def read_dicom_set(dicom_file, unwrap=False, mask=None, verbose=False,
     return result
 
 
-def _collect_data(images):
+def _collect_data(images, orig_file=""):
     shape = images[0].shape
     data = empty((len(images), shape[0], shape[1]))
     for i, item in enumerate(images):
         data[i] = item
     copy_attributes(data, images[0])
-    data.orig_file = "_".join(images[0].orig_file.split('_')[:-1])
+    data.orig_file = orig_file
     return data
 
 

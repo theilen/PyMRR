@@ -5,7 +5,15 @@ present in unwrapping.
 @author: Sebastian Theilenberg
 """
 
+import numpy as np
+
+from .py_unwrap import unwrap_py_gold, unwrap_quality_guided, \
+    unwrap_mask_cut, DerivativeVariance
+from ..mrrcore import MRRArray
+
+
 __version__ = '1.4.1'
+
 # $Source$
 
 
@@ -30,14 +38,6 @@ __version__ = '1.4.1'
 #
 # version 1.2
 # - added py_gold to unwrap_array, major changes in implementation
-
-
-import numpy as np
-
-from .py_unwrap import unwrap_py_gold, unwrap_quality_guided, \
-    unwrap_mask_cut, DerivativeVariance
-
-from ..mrrcore import MRRArray
 
 
 __all__ = ['unwrap_array', 'unwrap_image', 'valid_unwrapper']
@@ -91,8 +91,11 @@ def unwrap_array(array, mask, algorithm='py_gold', additional=False,
             mask_cut:       (quality_map, flag_array, num_pieces)
             py_gold:        (flag_array, num_pieces)
     """
-    if algorithm not in ['py_gold', 'c_gold', 'quality_guided', 'mask_cut']:
+    if algorithm not in ['py_gold', 'quality_guided', 'mask_cut']:
         raise AttributeError('No algorithm named {}'.format(algorithm))
+
+    if not np.any(mask):
+        raise ValueError("No mask provided!")
 
     if array.shape != mask.shape:
         raise ValueError("Mask does not fit to array!")

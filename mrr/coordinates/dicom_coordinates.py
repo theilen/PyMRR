@@ -60,6 +60,7 @@ def _get_matrix_3d(dcms):
     Defines the 3D affine matrix to map voxel coordinates to mm in the
     Dicom Patient Coordinate System.
     """
+    # TODO: sort dcms before using t1 and tn
     t1, iop, ps, st, sl = _read_image_plane_module(dcms[0])
     X, Y = iop[:3], iop[3:]
     dy, dx = ps

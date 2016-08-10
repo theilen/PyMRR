@@ -255,7 +255,7 @@ def fit_marker(region, img, verbose=False, log=False):
     if log:
         loglist = []
         args.append(loglist)
-    res = fmin(cost, initial, args=tuple(args), disp=verbose)
+    res = fmin(cost, initial, args=tuple(args), disp=False)
     cy, cx, yr, xr = res
 
     if verbose:
