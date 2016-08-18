@@ -43,7 +43,7 @@ import h5py
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
-from ..coordinates import get_position
+from ..coordinates.dicom_coordinates import get_position
 
 
 __all__ = ["MRRArray", "empty", "empty_like",

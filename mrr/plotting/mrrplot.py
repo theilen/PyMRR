@@ -38,6 +38,18 @@ plotParams = {
     }
 
 
+def create_axes_grid(n, c=4):
+    """Create a grid of pyplot-axes with n axes objects"""
+    nrows = n / 4
+    if n % c != 0:
+        nrows += 1
+    fig, ax = plt.subplots(nrows, c, figsize=(5 * c - 1, nrows * 4 - 1))
+    ax = ax.flatten()
+    for a in ax[n:]:
+        fig.delaxes(a)
+    return fig, ax
+
+
 def changeParams(parameter, **kwargs):
     for key, item in kwargs.items():
         if key not in plotParams[parameter]:
@@ -293,8 +305,6 @@ def display_plain(img, field='phase',
         print 'Field \'%s\' not found!' % field
         temp = img
 
-    fig = plt.figure()
-
     if crop:
         try:
             ylims, xlims = crop_image(img, crop_range)
@@ -304,17 +314,18 @@ def display_plain(img, field='phase',
     if crop is False:
         y_max, x_max = img.shape
         xlims, ylims = (0, x_max-1), (0, y_max-1)
-    plt.xlim(xlims)
-    plt.ylim(ylims[::-1])
+
+    fig = plt.Figure()
 
     ratio = calc_ratio(ylims, xlims)
     fig.set_size_inches(figwidth, figwidth*ratio)
 
-    ax = plt.Axes(fig, [0, 0, 1, 1])
+    ax = plt.subplot(111)
     ax.set_axis_off()
     ax.set_xlim(xlims)
     ax.set_ylim(ylims[::-1])
-    fig.add_axes(ax)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
 
     ax.imshow(temp, **imshow_dict)
 
