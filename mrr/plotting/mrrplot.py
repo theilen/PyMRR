@@ -13,6 +13,7 @@ __version__ = '1.5'
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import warnings
 
 from ..mrrcore.arithmetics import wrap
 
@@ -650,5 +651,9 @@ def polar_hist(data, bins=10, normed=False):
                               range=(0, 2.*np.pi), bins=bins)
     if normed:
         hist = 1.*hist/data.size
-    ax = plt.subplot(111, polar=True)
-    ax.bar(bins[:-1], hist, width=width)
+
+    with warnings.catch_warnings():
+        # some matplotlib versions raise numpy warnings
+        warnings.simplefilter("ignore")
+        ax = plt.subplot(111, polar=True)
+        ax.bar(bins[:-1], hist, width=width)
