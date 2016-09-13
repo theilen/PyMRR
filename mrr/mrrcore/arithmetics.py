@@ -251,3 +251,26 @@ def power(a, b, out=None): #tested
     out['dev'] = b * a.dev * np.power(a.phase, b-1.)
 
     return out
+
+
+def wrap(data, radian=False, out=None):
+    """
+    Parameters
+    ----------
+    data : numpy array of phase data
+    radian : if True, data is wrapped to [0, 2pi), else to [0, 1)
+    out : array (optional)
+        if provided, the result will be placed in out. Out must have the same
+        shape as the expected result.
+
+    Returns
+    -------
+    out : numpy array
+    """
+    wrap = 2.*np.pi if radian else 1.0
+    if out is None:
+        out = data.copy()
+
+    np.mod(data, wrap, out=out)
+
+    return out

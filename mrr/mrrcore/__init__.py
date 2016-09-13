@@ -38,6 +38,6 @@ __all__ = ["MRRArray", "empty", "empty_like", "zeros", "zeros_like",
            "cond_print"]  # core
 
 __all__.extend(["add", "div", "divide", "mult", "multiply", "sub", "subtract",
-                "power"])  # arithmetics
+                "power", "wrap"])  # arithmetics
 
 __all__.extend(["all_equal", "any_equal"])  # boolean

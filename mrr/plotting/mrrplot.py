@@ -14,6 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
+from ..mrrcore.arithmetics import wrap
+
 
 _default_clabel_tex = {
     "mask": r"mask",
@@ -643,7 +645,8 @@ def polar_hist(data, bins=10, normed=False):
         wether to normalize the histogram to the numbr od samples.
     """
     width = 2.*np.pi/bins
-    hist, bins = np.histogram(data.flatten()*2.*np.pi,
+
+    hist, bins = np.histogram(wrap(data).flatten()*2.*np.pi,
                               range=(0, 2.*np.pi), bins=bins)
     if normed:
         hist = 1.*hist/data.size
