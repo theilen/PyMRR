@@ -622,7 +622,6 @@ def plot(*args, **keyargs):
 
         if return_index:
             return indices[0], indices[-1]
-        
 
 
 _plot_labels = {'tex' : {'yl' : r'$\phi\,\left[rad/2\pi}\right]$',
@@ -630,3 +629,23 @@ _plot_labels = {'tex' : {'yl' : r'$\phi\,\left[rad/2\pi}\right]$',
                 'norm' : {'yl' : r'phase [rad/2pi]',
                           'xl' : r'Pixel'}
                 }
+
+
+def polar_hist(data, bins=10, normed=False):
+    """
+    Plot a polar histogram of data.
+
+    data : array
+        Phase data in the range [0,1)
+    bins : int
+        Number of bins
+    normed : True | False
+        wether to normalize the histogram to the numbr od samples.
+    """
+    width = 2.*np.pi/bins
+    hist, bins = np.histogram(data.flatten()*2.*np.pi,
+                              range=(0, 2.*np.pi), bins=bins)
+    if normed:
+        hist = 1.*hist/data.size
+    ax = plt.subplot(111, polar=True)
+    ax.bar(bins[:-1], hist, width=width)
