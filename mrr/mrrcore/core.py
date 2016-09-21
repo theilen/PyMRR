@@ -378,6 +378,9 @@ def savepkl(filename, a):
 
 
 def save(filename, array):
+    """
+    Save an MRRArray to an hdf5 file.
+    """
     f = h5py.File(filename + '.hdf5', 'w', libver='earliest')
     # save data
     f.create_dataset("data", data=array.view(np.ndarray))
