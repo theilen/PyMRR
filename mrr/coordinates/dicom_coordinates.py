@@ -29,6 +29,18 @@ import dicom
 #    else:
 #        return headers
 
+def order_dicom_slices(dcms):
+    """
+    Return a sorted version of the provided list of dicom files.
+    """
+    pos = []
+    for h in dcms:
+        iop = np.array(h.ImageOrientationPatient)
+        ipp = np.array(h.ImagePositionPatient)
+        n = np.cross(iop[:3], iop[3:])
+        pos.append(np.dot(n, ipp))
+    return [dcms[i] for i in sorted(range(len(pos)), key=pos.__getitem__)]
+
 
 def _read_image_plane_module(dcm):
     """
@@ -60,7 +72,7 @@ def _get_matrix_3d(dcms):
     Defines the 3D affine matrix to map voxel coordinates to mm in the
     Dicom Patient Coordinate System.
     """
-    # TODO: sort dcms before using t1 and tn
+    dcms = order_dicom_slices(dcms)
     t1, iop, ps, st, sl = _read_image_plane_module(dcms[0])
     X, Y = iop[:3], iop[3:]
     dy, dx = ps
@@ -143,3 +155,23 @@ def get_position(M, r, c, s=0):
              UserWarning)
     pos = np.dot(M, np.array([r, c, s, 1]).T)
     return pos[:3]
+
+
+def transfer_coordinate_systems(M, N, r, c, s):
+    """
+    Transfer a pixel from one coordinate system to another.
+
+    res = np.dot(N_inv, np.dot(M, pixel))
+
+    Parameters:
+    -----------
+    M : affine matrix of start coordinate system
+    N : affine matrix of target coordinate system
+    r, c, s: pixel coordinates in start coordinate system
+
+    Returns:
+    result : np.array, pixel (r, c, s) in target coordinate system
+    """
+    N_inv = _invert_affine_matrix(N)
+    res = np.dot(N_inv, np.dot(M, np.array([r, c, s, 1]).T))
+    return res[:3]

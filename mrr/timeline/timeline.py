@@ -5,7 +5,7 @@ __version__ = '0.92'
 
 import numpy as np
 
-from ..mrrcore import empty
+from ..mrrcore import empty, copy_attributes
 from ..read import read_dicom_set
 from ..unwrapping import DerivativeVariance
 
@@ -49,11 +49,8 @@ def create_timeline(times, normalize=True, average=True, verbose=False):
             normalize_image_set(img_set, threshold=0.7, verbose=verbose)
     # Create Timeline
     shape = times[0].shape
-    unwrapped = times[0].unwrapped
-    Timeline = empty((len(times), shape[-2], shape[-1]),
-                         orig_file='Zeitreihe',
-                         unwrapped=unwrapped
-                         )
+    Timeline = empty((len(times), shape[-2], shape[-1]))
+    copy_attributes(Timeline, times[0])
     for t, timepoint in enumerate(times):
         if average:
             item = timepoint.mean(axis=0)

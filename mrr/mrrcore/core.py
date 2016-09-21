@@ -43,7 +43,8 @@ import h5py
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
-from ..coordinates.dicom_coordinates import get_position
+from ..coordinates.dicom_coordinates import get_position, \
+    transfer_coordinate_systems
 
 
 __all__ = ["MRRArray", "empty", "empty_like",
@@ -51,6 +52,7 @@ __all__ = ["MRRArray", "empty", "empty_like",
            "zeros", "zeros_like",
            "save", "load",
            "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
+           "transfer_coords",
            "cond_print"
            ]
 
@@ -488,6 +490,7 @@ def mrr_mean(a, axis=None, weighted=True, unbias=True):
 
     # create new array
     res = MRRArray(av, orig_file=a.orig_file, unwrapped=a.unwrapped)
+    copy_attributes(res, a)
 
     # calculate deviation
     if axis:  # add dimension to av to get subtraction right
@@ -600,3 +603,15 @@ def cond_print(string, verbose=True):
         return True
     else:
         return False
+
+
+def transfer_coords(start, target, r, c, s=0):
+    """
+    Transfer a pixel between pixel coordinate systems.
+
+    pixel (r, c, s) is transfered from the pixel coordinate system (PCS) of
+    the start image to the PCS of the target image.
+    """
+    M = start.matrix
+    N = target.matrix
+    return transfer_coordinate_systems(M, N, r, c, s)

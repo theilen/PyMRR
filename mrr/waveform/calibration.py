@@ -108,7 +108,7 @@ class Calibrate(object):
         return self._linear(self.result.beta, x)
 
     def _func_std(self, x):
-        "Return the standard deviation on the calbrated values y(x)"
+        "Return the standard deviation on the calibrated values y(x)"
         g = np.array([x, 1])
         return np.sqrt(np.dot(g, np.dot(self.result.cov_beta, g.T)))
 

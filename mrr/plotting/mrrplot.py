@@ -266,7 +266,6 @@ def display(img, field='phase',
 def display_plain(img, field='phase',
                   crop=False, crop_range=10,
                   figwidth=4.0,
-                  grid=True,
                   hold=True,
                   **kwargs):
     '''

@@ -42,30 +42,30 @@ def adjust_window(images, window='center', mask='center'):
     '''
     Adjust the greyvalues of all given images, so that they all cover the same
     range of values.
-    
+
     window : ['center' | 'zero']
         the method used to adjust the values:
             'center' : the center-value of all adjusted images is the same.
-            'zero' : all images range from zero to the maximal value of all 
+            'zero' : all images range from zero to the maximal value of all
                      adjusted images.
-                     
+
     mask : ['center' | 'min' | 'max' | float]
         the value assigned to masked pixels:
-            'center' : exactly between the minimum and the maximum value of 
+            'center' : exactly between the minimum and the maximum value of
                        all images after adjustment.
             'min' : the minimal value of all images after adjustment.
             'max' : the maximal value of all images after adjustment.
-            float : a specific value. Note that decimal-numbers use '.' 
+            float : a specific value. Note that decimal-numbers use '.'
                     instead of ','!
     '''
-    if not window in ['zero', 'center']:
+    if window not in ['zero', 'center']:
         raise AttributeError('No window "%s" defined!' % window)
     single = False
     gmin = 999.
     gmax = -999.
     grange = 0.
     if hasattr(images, 'shape'):
-            if len(images.shape) == 2: #single image
+            if len(images.shape) == 2:  # single image
                 single = True
                 gmin = core.min(images)
                 gmax = core.max(images)
@@ -77,23 +77,23 @@ def adjust_window(images, window='center', mask='center'):
             gmin = min(gmin, core.min(item))
             gmax = max(gmax, core.max(item))
             grange = max(grange, core.max(item)-core.min(item))
-    print 'adjust_window: gmin,gmax,grange =',gmin, gmax, grange
+    print 'adjust_window: gmin,gmax,grange =', gmin, gmax, grange
     if single:
         return eval('window_' + window
-                    + '(images,%f,%f,%f' % (gmin,gmax,grange)        
+                    + '(images,%f,%f,%f' % (gmin, gmax, grange)
                     + ',"%s")' % str(mask)
                     )
     else:
         result = []
         for item in images:
-            result.append( eval('window_' + window
-                                + '(item,%f,%f,%f' % (gmin,gmax,grange)
-                                + ',"%s")' % str(mask)
-                                ) 
+            result.append(eval('window_' + window
+                               + '(item,%f,%f,%f' % (gmin, gmax, grange)
+                               + ',"%s")' % str(mask)
+                               ) 
                           )
         return result
 
-    
+
 def set_mask(array, mask, valrange):
     if mask=='center':
         value = valrange/2.
@@ -272,7 +272,7 @@ def save_image(filename, img, field='phase', figwidth=4.0,
     display_plain(img, field=field, figwidth=figwidth,
                   crop=crop, crop_range=crop_range,
                   **kwargs)
-    plt.savefig(filename)
+    plt.savefig(filename, bbox_inches='tight')
     
     plt.close(plt.gcf())
     plt.interactive(True)
