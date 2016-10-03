@@ -369,6 +369,7 @@ def overlay(foreground, background, Mf=None, Mb=None, fkwargs={}, bkwargs={},
     crop_range : int, amount of space around mask in case of cropping
     plain : bool, turn off axis descriptions and colorbar
     clabel : str, label of the colorbar if not plain == True
+    yshift : float, amount of pixel to shift the foreground image
     """
     if Mf is None:
         Mf = foreground.matrix
@@ -410,14 +411,20 @@ def overlay(foreground, background, Mf=None, Mb=None, fkwargs={}, bkwargs={},
             ymax, xmax, _ = transfer_coordinate_systems(
                 Mf, Mb, ylims[1], xlims[1], 0
                 )
-            ylims = (ymin, ymax)
-            xlims = (xmin, xmax)
 
     if crop is False:
         ymax, xmax = background.shape[0] - 1, background.shape[1] - 1
         ymin, xmin = (0, 0)
-        ylims = (ymin, ymax)
-        xlims = (xmin, xmax)
+
+    yshift = kwargs.pop('yshift', None)
+    if yshift is not None:
+        fymin += yshift
+        fymax += yshift
+        ymin += yshift
+        ymax += yshift
+
+    ylims = (ymin, ymax)
+    xlims = (xmin, xmax)
 
     plain = kwargs.pop('plain', False)
 
