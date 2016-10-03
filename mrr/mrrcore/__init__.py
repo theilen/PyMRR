@@ -35,9 +35,9 @@ mean = mrr_mean
 
 __all__ = ["MRRArray", "empty", "empty_like", "zeros", "zeros_like",
            "min", "max", "load", "save", "mean", "mean_phasor",
-           "transfer_coords", "cond_print"]  # core
+           "cond_print"]  # core
 
 __all__.extend(["add", "div", "divide", "mult", "multiply", "sub", "subtract",
                 "power", "wrap"])  # arithmetics
 
-__all__.extend(["all_equal", "any_equal"])  # boolean
+__all__.extend(["all_equal", "any_equal", "shrink_mask"])  # boolean

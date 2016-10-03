@@ -15,6 +15,7 @@ __version__ = '1.2.1'
 # $Source$
 
 from .waveform import *
+from . import calibration
 
 __all__ = ['get_waveform',      #read-in waveforms
            'calibrate_linear',

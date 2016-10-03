@@ -43,6 +43,7 @@ import h5py
 
 from .arithmetics import absolute, negate, add, subtract, multiply, divide, \
     power
+from .boolean import shrink_mask
 from ..coordinates.dicom_coordinates import get_position, \
     transfer_coordinate_systems
 
@@ -52,7 +53,6 @@ __all__ = ["MRRArray", "empty", "empty_like",
            "zeros", "zeros_like",
            "save", "load",
            "mrr_min", "mrr_max", "mrr_mean", "mean_phasor",
-           "transfer_coords",
            "cond_print"
            ]
 
@@ -93,6 +93,8 @@ class MRRArray(np.ndarray):
                    "date": None,
                    "time": None,
                    "prepscans": None,
+                   "delta r": None,
+                   "delta c": None
                    }
     _datatype = {'names':   ['phase', 'dev', 'mask'],
                  'formats':  [np.float32, np.float32, np.bool_]
@@ -103,7 +105,9 @@ class MRRArray(np.ndarray):
                          "maxGrad": "mT/m",
                          "gradstart": "ms",
                          "bvalue": "s/mm^2",
-                         "echotime": "ms"
+                         "echotime": "ms",
+                         "delta r": "mm",
+                         "delta c": "mm"
                          }
     _exclude_in_print = ("orig_file", "load_file", "unwrapped",
                          "matrix", "description", "date", "time")
@@ -218,7 +222,7 @@ class MRRArray(np.ndarray):
 
     def get_attributes(self):
         "Returns the attributes as dictionary."
-        return self._attributes.copy()
+        return self.__dict__.copy()
 
     def position(self, r, c, s=0):
         "Return the position of pixel (r, c, s) in mm (x, y, z) in the DPCS."
@@ -342,6 +346,19 @@ class MRRArray(np.ndarray):
     def mean(self, axis=None, weighted=True, unbias=True):
         "Return the mean of self's phase values along axis. See mrr.mean"
         return mrr_mean(self, axis, weighted, unbias)
+
+    def shrink_mask(self, axis, n=1):
+        """
+        Shrink mask by n pixels in every direction in axis.
+        """
+        try:
+            len(axis)
+        except TypeError:
+            axis = [axis]
+        shrinked = self.mask.copy()
+        for a in axis:
+            shrinked &= shrink_mask(self.mask, a, n)
+        self['mask'] = shrinked
 
 
 # Array-Creation
@@ -606,15 +623,3 @@ def cond_print(string, verbose=True):
         return True
     else:
         return False
-
-
-def transfer_coords(start, target, r, c, s=0):
-    """
-    Transfer a pixel between pixel coordinate systems.
-
-    pixel (r, c, s) is transfered from the pixel coordinate system (PCS) of
-    the start image to the PCS of the target image.
-    """
-    M = start.matrix
-    N = target.matrix
-    return transfer_coordinate_systems(M, N, r, c, s)

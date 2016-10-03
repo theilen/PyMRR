@@ -99,6 +99,8 @@ from .plotting import *
 from .unwrapping import *
 from .timeline import normalize_image_set, broaden_mask
 from . import waveform, unwrapping, bvalue, arc, coordinates, timeline
+from .coordinates import transfer_coords
+from .strain import calc_strain, total_strain
 
 
 def return_test_path():

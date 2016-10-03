@@ -175,3 +175,15 @@ def transfer_coordinate_systems(M, N, r, c, s):
     N_inv = _invert_affine_matrix(N)
     res = np.dot(N_inv, np.dot(M, np.array([r, c, s, 1]).T))
     return res[:3]
+
+
+def transfer_coords(start, target, r, c, s=0):
+    """
+    Transfer a pixel between pixel coordinate systems.
+
+    pixel (r, c, s) is transfered from the pixel coordinate system (PCS) of
+    the start image to the PCS of the target image.
+    """
+    M = start.matrix
+    N = target.matrix
+    return transfer_coordinate_systems(M, N, r, c, s)

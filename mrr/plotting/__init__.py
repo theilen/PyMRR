@@ -49,4 +49,5 @@ __version__ = '1.4'
 
 from .mrrplot import *
 
-__all__ = ['plot', 'display', 'display_plain', 'overview', 'polar_hist']
+__all__ = ['plot', 'display', 'display_plain', 'overview', 'polar_hist',
+           'overlay']

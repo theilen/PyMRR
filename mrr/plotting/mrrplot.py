@@ -16,6 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import warnings
 
 from ..mrrcore.arithmetics import wrap
+from ..coordinates import transfer_coordinate_systems
 
 
 _default_clabel_tex = {
@@ -349,6 +350,104 @@ def crop_image(array, crop_range=10):
     ylims, xlims = crop_limits(indices, crop_range)
 
     return ylims, xlims
+
+
+def overlay(foreground, background, Mf=None, Mb=None, fkwargs={}, bkwargs={},
+            **kwargs):
+    """
+    Display one image transparently on top of another.
+
+    Parameters:
+    -----------
+    foreground, background : 2D arrays, data to be displayed
+    Mf, Mb : affine matrices of the data. If not present, foreground resp.
+        background need to provide a property "matrix"
+    fkwargs : dict, additional kwargs passed to imshow when plotting foreground
+    bkwargs : dict, additional kwargs passed to imshow when plotting background
+    crop : 'f' | 'b', whether to crop the image based on foreground (f) or
+        background (b) mask
+    crop_range : int, amount of space around mask in case of cropping
+    plain : bool, turn off axis descriptions and colorbar
+    clabel : str, label of the colorbar if not plain == True
+    """
+    if Mf is None:
+        Mf = foreground.matrix
+    if Mb is None:
+        Mb = background.matrix
+
+    foregroundkwargs = dict(alpha=0.5, interpolation='none', cmap='magma')
+    foregroundkwargs.update(fkwargs)
+    backgroundkwargs = dict(cmap='Greys_r', interpolation='none')
+    backgroundkwargs.update(bkwargs)
+
+    crop = kwargs.pop('crop', False)
+    if crop:
+        crop_range = kwargs.pop('crop_range', 10)
+        if crop not in ['f', 'b']:
+            crop = 'b'
+
+    # transfer foreground corners to background coordinate system
+    fymin, fxmin, _ = transfer_coordinate_systems(Mf, Mb, 0, 0, 0)
+    fymax, fxmax, _ = transfer_coordinate_systems(
+        Mf, Mb, foreground.shape[0], foreground.shape[1], 0
+        )
+
+    # get background limits
+    if crop:
+        if crop == 'b':
+            img = background
+        else:
+            img = foreground
+        try:
+            ylims, xlims = crop_image(img, crop_range)
+        except (ValueError, IndexError):
+            crop = False
+
+        if crop == 'f':
+            ymin, xmin, _ = transfer_coordinate_systems(
+                Mf, Mb, ylims[0], xlims[0], 0
+                )
+            ymax, xmax, _ = transfer_coordinate_systems(
+                Mf, Mb, ylims[1], xlims[1], 0
+                )
+            ylims = (ymin, ymax)
+            xlims = (xmin, xmax)
+
+    if crop is False:
+        ymax, xmax = background.shape[0] - 1, background.shape[1] - 1
+        ymin, xmin = (0, 0)
+        ylims = (ymin, ymax)
+        xlims = (xmin, xmax)
+
+    plain = kwargs.pop('plain', False)
+
+    try:
+        foreground = foreground.phase
+    except AttributeError:
+        pass
+    try:
+        background = background.phase
+    except AttributeError:
+        pass
+
+    ax = plt.subplot(111)
+    if plain:
+        ax.set_axis_off()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    ax.set_xlim(xlims)
+    ax.set_ylim(ylims[::-1])
+
+    ax.imshow(background,
+              extent=[0, background.shape[1], background.shape[0], 0],
+              **backgroundkwargs)
+    fimg = ax.imshow(foreground, origin='upper',
+                     extent=[fxmin, fxmax, fymax, fymin], **foregroundkwargs)
+
+    if not plain:
+        cbar = plt.colorbar(fimg)
+        cl = kwargs.pop('clabel', '')
+        cbar.set_label(cl)
 
 
 def overview(array, field="phase", nx=5, imageaxis=0, averageaxis=0,

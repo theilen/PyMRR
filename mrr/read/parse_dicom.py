@@ -10,6 +10,7 @@ __version__ = '0.82'
 
 
 import dicom
+import numpy as np
 
 from .siemens_csa import get_phoenix_protocol
 from ..coordinates.dicom_coordinates import get_matrix
@@ -99,6 +100,9 @@ def parse_parameters(dcm):
     parameters = {}
     parameters["protocol"] = dcm.ProtocolName
     parameters["echotime"] = float(dcm.EchoTime)
+    ps = np.array([float(i) for i in dcm.PixelSpacing])
+    parameters["delta r"] = ps[0]
+    parameters["delta c"] = ps[1]
 
     dt = _create_datetime_object(dcm)
     parameters["date"] = dt.strftime("%Y-%m-%d")
