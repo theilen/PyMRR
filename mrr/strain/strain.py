@@ -44,16 +44,16 @@ def calc_strain(array, gauss=0.6, axis=1, n=2, dist=None):
         shrink_indices = [1, 2]
         sigma = [0, gauss, gauss]
     if dist is None:
-        dist = [1,]*array.ndim
+        dist = [1, ]*array.ndim
     else:
         try:
-            match = len(dist)
+            match = (len(dist) == array.ndim)
         except TypeError:
-            dist = [1,]*array.ndim
+            dist = [1, ]*array.ndim
         else:
             if not match:
                 raise TypeError("dist does not match array's dimensions!")
-                
+
     strain = gaussian_filter(strain, sigma)
     strain = np.gradient(strain, edge_order=2, *dist)[axis]
 
