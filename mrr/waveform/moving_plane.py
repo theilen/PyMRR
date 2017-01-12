@@ -98,29 +98,42 @@ class moving_plane(object):
         for i, p in enumerate(points):
             if not len(p) == 4:
                 raise ValueError("expected size 4 array")
-            interp = interp1d(p[0], p[1:], copy=True,
-                              bounds_error=True, assume_sorted=True)
+            try:
+                interp = interp1d(p[0], p[1:], axis=-1, copy=True,
+                                  bounds_error=True, assume_sorted=True)
+            except:
+                print p[0].shape, p[1:].shape
+                raise
             self._points.append(interp)
         self._sd = []
         for i, sd in enumerate([sd1, sd2, sd3]):
             # set sd to zero if not present
             if not np.any(sd):
-                sd = np.zeros((3, len(points[i])))
+                sd = np.zeros((3, points[i].shape[-1]))
             if not len(sd) == 3:
                 raise ValueError("expected size 3 array for sd")
-            interp = interp1d(points[i][0], sd, copy=True,
-                              bounds_error=True, assume_sorted=True)
+            try:
+                interp = interp1d(points[i][0], sd, axis=-1, copy=True,
+                                  bounds_error=True, assume_sorted=True)
+            except:
+                print points[i][0].shape, sd.shape
+                raise
             self._sd.append(interp)
         self._syst = []
         for i, sd in enumerate([syst1, syst2, syst3]):
             # set sd to zero if not present
             if not np.any(sd):
-                sd = np.zeros((3, len(points[i])))
+                sd = np.zeros((3, points[i].shape[-1]))
             if not len(sd) == 3:
                 raise ValueError("expected size 3 array for syst")
-            interp = interp1d(points[i][0], sd, copy=True,
-                              bounds_error=True, assume_sorted=True)
+            try:
+                interp = interp1d(points[i][0], sd, axis=-1, copy=True,
+                                  bounds_error=True, assume_sorted=True)
+            except:
+                print points[0][i].shape, sd.shape
+                raise
             self._syst.append(interp)
+        self._has_run = False
 
     def __call__(self, t, std=False):
         'Returns the planes coefficients (n1, n2, n3, d) at time t.'
@@ -154,7 +167,8 @@ class moving_plane(object):
     def _create_plane(self, t):
         "Creates the plane for a single time t."
         n = self._construct_n(t)
-        d = np.dot(n, self._get_points(t, 3))
+        print self._get_points(t, 2)
+        d = np.dot(n, self._get_points(t, 2))
         plane = np.array([n.tolist()] + [d])
         return plane
 

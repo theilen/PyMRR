@@ -47,7 +47,11 @@ def create_axes_grid(n, c=4):
     nrows = n / 4
     if n % c != 0:
         nrows += 1
-    fig, ax = plt.subplots(nrows, c, figsize=(5 * c - 1, nrows * 4 - 1))
+    try:
+        fig, ax = plt.subplots(nrows, c, figsize=(5 * c - 1, nrows * 4 - 1))
+    except IndexError:
+        print n, c, nrows
+        raise
     ax = ax.flatten()
     for a in ax[n:]:
         fig.delaxes(a)

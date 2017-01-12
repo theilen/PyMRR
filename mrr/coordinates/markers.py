@@ -19,19 +19,28 @@ from ..plotting.mrrplot import display, create_axes_grid
 __version__ = "0.11"
 
 
-LEFT_CORR = (39.1, 0.0, -29.6)
-RIGHT_CORR = (-37.9, 0.0, -29.6)
-CRANIAL_CORR = (0.0, 0.0, 26.0)
-
-CORRECTIONS = (LEFT_CORR,
-               RIGHT_CORR,
-               CRANIAL_CORR)
+#LEFT_CORR = (39.1, 0.0, -29.6)
+#RIGHT_CORR = (-37.9, 0.0, -29.6)
+#CRANIAL_CORR = (0.0, 0.0, 26.0)
+#
+#CORRECTIONS = (LEFT_CORR,
+#               RIGHT_CORR,
+#               CRANIAL_CORR)
 
 THREE_MARKERS_BONN = {
     'cranial': {'yarea': (80, 200),
                 'xarea': (150, 300)},
     'dorsal': {'yarea': (200, 350)}
     }
+
+
+SHELL_TO_REF = {'left': np.array([[-81.17, 0, 47.50], [1.1, 0, 0.7]]),
+                'right': np.array([[85.60, 0, 42.93], [1.4, 0, 0.7]]),
+                'cranial': np.array([[-8.09, 0, -101.64], [0.1, 0, 0.6]])}
+
+REF_TO_OPTIC = {'left': np.array([[-127.09, 0, 89.28], [1.9, 0, 1.4]]),
+                'right': np.array([[139.37, 0, 78.07], [2.1, 0, 1.2]]),
+                'cranial': np.array([[-6.41, 0, -129.43], [0.1, 0, 0.8]])}
 
 
 def read_out_markers(imgset, header, indices=[], zoom=True, average=True):
@@ -78,16 +87,40 @@ def read_out_markers(imgset, header, indices=[], zoom=True, average=True):
     return coordinates
 
 
-def correct_positions(left=None, right=None, cranial=None):
-    m_counter = 0
-    for marker in [left, right, cranial]:
-        if marker is not None:
-            if not marker.size == 3:
-                raise ValueError(
-                    "coordinates should be 3D (got {})".format(marker)
-                    )
-            marker += CORRECTIONS[m_counter]
-        m_counter += 1
+def calculate_optical_positions(left, right, cranial):
+    """
+    Calculate the location of the OPS in the DPCS.
+    """
+    refs = []
+    for k, d in zip(['left', 'right', 'cranial'], [left, right, cranial]):
+        # ToDo: handle ndim=1
+        std_ = np.sqrt(d.std(axis=0)**2. + SHELL_TO_REF[k][1]**2.)
+        d_ = d.mean(axis=0) + SHELL_TO_REF[k][0]
+        refs.append([d_, std_])
+    refs = np.array(refs)
+    ref = np.average(refs[:, 0], axis=0, weights=1./refs[:, 1])
+    std = np.sqrt(np.average((refs[:, 0] - ref)**2.,
+                             axis=0, weights=1./refs[:, 1]))
+    ref = np.vstack((ref, std))
+
+    optical = np.array([
+        np.vstack((ref[0] + REF_TO_OPTIC[k][0],
+                   np.sqrt(ref[1]**2. + REF_TO_OPTIC[k][1]**2.)))
+        for k in ['left', 'right', 'cranial']
+    ])
+    return optical
+
+# old corrections
+#def correct_positions(left=None, right=None, cranial=None):
+#    m_counter = 0
+#    for marker in [left, right, cranial]:
+#        if marker is not None:
+#            if not marker.size == 3:
+#                raise ValueError(
+#                    "coordinates should be 3D (got {})".format(marker)
+#                    )
+#            marker += CORRECTIONS[m_counter]
+#        m_counter += 1
 
 
 def find_marker_regions(img, xlimits=None, ylimits=None,
@@ -358,6 +391,7 @@ def _find_regions_set(images, bthresh, yarea=None, xarea=None, plot=False):
 
 def _fit_markers_set(images, regions, plot=False):
     """Fit markers to regions in a set of images."""
+    assert len(regions) > 0
     markers = []
     if plot:
         _, axes = create_axes_grid(len(regions))
